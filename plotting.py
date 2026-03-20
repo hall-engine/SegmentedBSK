@@ -271,7 +271,16 @@ def plot_orbital_trajectories(r1_n, r2_n, engaged, time, out_dir="./results", ap
                      color="red", lw=4, label="Control ON" if i == 0 else "")
     ax1.set_xlabel(xlabel); ax1.set_ylabel(ylabel); ax1.set_zlabel(zlabel)
     ax1.set_title(f"3D Orbital Trajectories ({frame_label})")
-    if hasattr(ax1, "set_box_aspect"): ax1.set_box_aspect((1, 1, 0.35))
+    # Equal x-y scale so the true ellipse shape is visible; z scales freely
+    all_r  = np.vstack([r1, r2])
+    xy_half = max(np.ptp(all_r[:, 0]), np.ptp(all_r[:, 1])) / 2
+    cx = (all_r[:, 0].max() + all_r[:, 0].min()) / 2
+    cy = (all_r[:, 1].max() + all_r[:, 1].min()) / 2
+    ax1.set_xlim(cx - xy_half, cx + xy_half)
+    ax1.set_ylim(cy - xy_half, cy + xy_half)
+    z_half = np.ptp(all_r[:, 2]) / 2
+    z_frac = max(0.1, z_half / xy_half) if xy_half > 0 else 1.0
+    if hasattr(ax1, "set_box_aspect"): ax1.set_box_aspect((1, 1, z_frac))
     ax1.legend(loc="upper right", fontsize=9)
     set_dark_transparent(ax1)
     plt.savefig(os.path.join(out_dir, f"orbit_3d{suffix}.png"), dpi=120)
@@ -290,6 +299,8 @@ def plot_orbital_trajectories(r1_n, r2_n, engaged, time, out_dir="./results", ap
                 ax.plot(r2[s:e, ci], r2[s:e, cj], color="red",
                         lw=3, label="Control ON" if i == 0 else "")
         ax.set_xlabel(lx); ax.set_ylabel(ly)
+        if tag == "xy":
+            ax.set_aspect('equal')   # true ellipse shape on the main orbital plane
         ax.legend(fontsize=7); ax.grid(alpha=0.3)
         set_dark_transparent(ax)
     fig2.suptitle(f"Orbital Projections ({frame_label})", fontsize=11)

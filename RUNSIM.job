@@ -150,7 +150,7 @@ simulation.run(
     time_step_sec   = 0.5,
     read_every      = 100,
     show_plots      = True,
-    mirror_plot     = False,
+    mirror_plot     = True,
     disable_progress= True,
 )
 PYEOF
