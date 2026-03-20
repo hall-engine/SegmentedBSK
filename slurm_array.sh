@@ -25,9 +25,11 @@
 
 # ─── Parameter grid ───────────────────────────────────────────────────────────
 # Edit these arrays.  Every combo gets one array task.
-PARAM_I=(0)
-PARAM_RAAN=(45)
-PARAM_OMEGA=(0 45 90 135 180 225 270 315)
+PARAM_I=(0 45 90 135 180 215)
+PARAM_RAAN=(0)
+PARAM_OMEGA=(0 45 90 135 180 215)
+PARAM_A=(40000000 50000000 60000000 70000000)
+PARAM_E=(0.2 0.4 0.6 0.8)
 
 # ─── Build flat index → (i, raan, omega) mapping ─────────────────────────────
 combos=()

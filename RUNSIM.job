@@ -99,10 +99,10 @@ else
     echo "Started:  $(date)"
 
     # ── Parameter grid (must match monte_carlo.py values) ──────────────────
-    PARAM_I=(0 45 90 135 180)
+    PARAM_I=(0 45 90 135 180 215)
     PARAM_RAAN=(0)
-    PARAM_OMEGA=(0 45 90 135 180)
-    PARAM_A=(40000000 50000000 60000000 )
+    PARAM_OMEGA=(0 45 90 135 180 215)
+    PARAM_A=(40000000 50000000 60000000 70000000)
     PARAM_E=(0.2 0.4 0.6 0.8)
     #---sbatch --array=0-299 RUNSIM.job
 
@@ -147,8 +147,8 @@ simulation.run(
     base_omega_deg  = $OMEGA_DEG,
     a_geo           = $A_GEO,
     e_geo           = $E_GEO,
-    time_step_sec   = 0.5,
-    read_every      = 100,
+    time_step_sec   = 0.1,
+    read_every      = 50,
     show_plots      = True,
     mirror_plotting = True,
     disable_progress= True,
