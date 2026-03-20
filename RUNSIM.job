@@ -59,7 +59,7 @@ module purge
 module load gcc/13.3.0
 module load python/3.11.9
 
-SIM_DIR="$(cd "$(dirname "$0")" && pwd)"
+SIM_DIR="${SLURM_SUBMIT_DIR}"          # directory where you ran sbatch
 VENV_PYTHON="$SIM_DIR/bsk_env/bin/python3"
 
 # Verify the venv exists (created by setup_env.sh)

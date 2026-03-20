@@ -103,6 +103,11 @@ def run(cfg, read_every, opd_vmax=0.005, debug=False):
 
     print(f">> pulled {len(states)} State objects")
 
+    # Guard: nothing to plot if mirror data was never written
+    if time is None or len(time) == 0:
+        print(">> mirror_plotting: HDF5 has no time data — skipping all mirror plots.")
+        return
+
     # Extract required parameters for create_frames
     rings = cfg.rings
     flattoflat = cfg.flat_to_flat
