@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/Users/userprime/Library/CloudStorage/GoogleDrive-hahall@usc.edu/My Drive/Optical Reef/Simulators/SegmentedBSK/fastersimulation/main.py", line 203, in UpdateState
+    self.states = segmented_optics.gauge_where_pointing(
+  File "/Users/userprime/Library/CloudStorage/GoogleDrive-hahall@usc.edu/My Drive/Optical Reef/Simulators/SegmentedBSK/fastersimulation/segmented_optics.py", line 124, in gauge_where_pointing
+    dcm_BN = MissionController.mrp_to_dcm(sigma_BN)
+AttributeError: type object 'MissionController' has no attribute 'mrp_to_dcm'
