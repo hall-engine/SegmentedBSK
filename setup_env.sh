@@ -144,6 +144,7 @@ PACKAGES=(
     "poppy"
     "astropy"
     "Pillow"
+    "pytest"           # required by Basilisk's unitTestSupport.py (imported at module load)
 )
 
 log "Installing Python packages..."
@@ -175,6 +176,7 @@ checks = [
     ("poppy",         "poppy"),
     ("astropy",       "astropy"),
     ("PIL (Pillow)",  "PIL"),
+    ("pytest",        "pytest"),
 ]
 for label, mod in checks:
     try:
