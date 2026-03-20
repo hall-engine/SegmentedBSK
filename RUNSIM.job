@@ -1,0 +1,159 @@
+#!/bin/bash
+# =============================================================================
+# RUNSIM.job — SLURM submission for SegmentedBSK Monte Carlo sweep
+# =============================================================================
+#
+# TWO MODES — un-comment the block that matches what you want:
+#
+#   MODE A (default): Single node, many cores — runs monte_carlo.py which
+#                     uses Python multiprocessing internally.
+#                     Best for a sweep that fits on one large node.
+#
+#   MODE B:           Multi-node SLURM array — each array task runs ONE
+#                     simulation on its own node/core independently.
+#                     Best for sweeps too large or too long for one node.
+#
+# Submit:
+#   MODE A:  sbatch RUNSIM.job
+#   MODE B:  sbatch --array=0-<N_COMBOS-1> RUNSIM.job
+# =============================================================================
+
+# ─── Shared settings (both modes) ─────────────────────────────────────────────
+#SBATCH --account=dbarnhar_1592
+#SBATCH --job-name=optical_reef_mc
+#SBATCH --output=logs/mc_%j.out        # %j = job id  (MODE A)
+#SBATCH --error=logs/mc_%j.err
+#SBATCH --time=53:00:00
+
+# =============================================================================
+# MODE A — Single node, multiprocessing (monte_carlo.py)
+# Each worker process runs one full simulation.
+# cpus-per-task should match N_WORKERS in monte_carlo.py (or let it auto-detect).
+# =============================================================================
+##SBATCH --partition=largemem
+##SBATCH --nodes=1
+##SBATCH --ntasks=1
+##SBATCH --cpus-per-task=16             # python multiprocessing workers (tune to sweep size)
+##SBATCH --mem=128G                     # ~4-8 GB per worker × cpus-per-task
+
+# =============================================================================
+# MODE B — Multi-node array (one sim per task; comment out MODE A block above
+#          and un-comment the lines below, then submit with --array=0-N)
+# sbatch --array=0-323 →  SLURM spins up 324 separate jobs
+#                         each gets: 1 node, 2 CPUs, 8G RAM
+#                         each runs: exactly 1 simulation
+# =============================================================================
+#SBATCH --partition=main              # use a partition with many nodes
+#SBATCH --nodes=1                     # each task gets 1 node
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=2            # BSK sim + plotting per task
+#SBATCH --mem=8G                     # per task
+#SBATCH --output=logs/mc_%A_%a.out   # %A = array job id, %a = task index
+#SBATCH --error=logs/mc_%A_%a.err
+#SBATCH --time=00:30:00
+
+# =============================================================================
+
+# ─── Environment setup ────────────────────────────────────────────────────────
+module purge
+module load gcc/13.3.0
+module load python/3.11.9
+
+SIM_DIR="$(cd "$(dirname "$0")" && pwd)"
+VENV_PYTHON="$SIM_DIR/bsk_env/bin/python3"
+
+# Verify the venv exists (created by setup_env.sh)
+if [ ! -x "$VENV_PYTHON" ]; then
+    echo "ERROR: venv not found at $VENV_PYTHON"
+    echo "Run 'bash setup_env.sh' first to create the environment."
+    exit 1
+fi
+
+# Make sure Basilisk's built packages are on the path
+# (adjust the path below if Basilisk was installed elsewhere)
+export PYTHONPATH="$HOME/basilisk/dist3:$SIM_DIR:${PYTHONPATH:-}"
+
+mkdir -p logs
+
+# =============================================================================
+# MODE A — launch the parallel Monte Carlo runner
+# monte_carlo.py auto-reads SLURM_CPUS_PER_TASK to set N_WORKERS
+# =============================================================================
+if [ -z "${SLURM_ARRAY_TASK_ID:-}" ]; then
+    echo "=== MODE A: single-node multiprocessing ==="
+    echo "Workers:  $SLURM_CPUS_PER_TASK  (from SLURM_CPUS_PER_TASK)"
+    echo "Node:     $(hostname)"
+    echo "Started:  $(date)"
+
+    "$VENV_PYTHON" "$SIM_DIR/monte_carlo.py"
+
+    echo "Finished: $(date)"
+
+# =============================================================================
+# MODE B — single simulation selected by SLURM array index
+# Each array task runs ONE (i, raan, omega, a, e) combination.
+# =============================================================================
+else
+    echo "=== MODE B: array task $SLURM_ARRAY_TASK_ID ==="
+    echo "Node:     $(hostname)"
+    echo "Started:  $(date)"
+
+    # ── Parameter grid (must match monte_carlo.py values) ──────────────────
+    PARAM_I=(0 45 90 135 180)
+    PARAM_RAAN=(0)
+    PARAM_OMEGA=(0 45 90 135 180)
+    PARAM_A=(40000000 50000000 60000000 )
+    PARAM_E=(0.2 0.4 0.6 0.8)
+    #---sbatch --array=0-299 RUNSIM.job
+
+    # Build flat combo list (same nested-loop order as monte_carlo.py)
+    combos=()
+    for i in "${PARAM_I[@]}"; do
+      for r in "${PARAM_RAAN[@]}"; do
+        for o in "${PARAM_OMEGA[@]}"; do
+          for a in "${PARAM_A[@]}"; do
+            for e in "${PARAM_E[@]}"; do
+              combos+=("${i},${r},${o},${a},${e}")
+            done
+          done
+        done
+      done
+    done
+
+    N_COMBOS=${#combos[@]}
+    echo "Total combos: $N_COMBOS | This task: $SLURM_ARRAY_TASK_ID"
+
+    if [ "$SLURM_ARRAY_TASK_ID" -ge "$N_COMBOS" ]; then
+        echo "Array index out of range — exiting."
+        exit 1
+    fi
+
+    IFS=',' read -r I_DEG RAAN_DEG OMEGA_DEG A_GEO E_GEO \
+        <<< "${combos[$SLURM_ARRAY_TASK_ID]}"
+    echo "Running: i=$I_DEG  raan=$RAAN_DEG  omega=$OMEGA_DEG  a=$A_GEO  e=$E_GEO"
+
+    "$VENV_PYTHON" - <<PYEOF
+import sys, matplotlib
+matplotlib.use("Agg")
+sys.path.insert(0, "$SIM_DIR")
+from config import SimConfig
+import main as simulation
+
+cfg = SimConfig()
+simulation.run(
+    cfg,
+    base_i_deg      = $I_DEG,
+    base_raan_deg   = $RAAN_DEG,
+    base_omega_deg  = $OMEGA_DEG,
+    a_geo           = $A_GEO,
+    e_geo           = $E_GEO,
+    time_step_sec   = 0.5,
+    read_every      = 100,
+    show_plots      = True,
+    mirror_plot     = False,
+    disable_progress= True,
+)
+PYEOF
+
+    echo "Finished: $(date)"
+fi

@@ -56,7 +56,8 @@ echo "Running: i=$I_DEG  raan=$RAAN_DEG  omega=$OMEGA_DEG"
 # ─── Run ──────────────────────────────────────────────────────────────────────
 mkdir -p logs
 
-PYTHON=/Users/userprime/dev/basilisk_env/bin/python3   # ← update path for HPC
+PYTHON="$(dirname "$0")/bsk_env/bin/python3"   # created by setup_env.sh
+# If the venv doesn't exist yet, run:  bash setup_env.sh
 SIM_DIR="$(dirname "$0")"
 
 "$PYTHON" - <<EOF

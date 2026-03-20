@@ -37,11 +37,11 @@ matplotlib.use("Agg")   # tell matplotlib NOT to open any windows — required w
 # Every combination of (i, raan, omega) becomes one separate simulation run.
 # e.g. 1 i × 1 raan × 8 omega = 8 total simulations.
 
-BASE_I_DEG_VALUES     = [0, 45, 90]  # inclination values to try [deg]
-BASE_RAAN_DEG_VALUES  = [0, 45, 90]  # RAAN values to try [deg]
-BASE_OMEGA_DEG_VALUES = [0, 45, 90]  # argument of perigee values to try [deg]
+BASE_I_DEG_VALUES     = [0, 45, 90, 135, 180]  # inclination values to try [deg]
+BASE_RAAN_DEG_VALUES  = [0]                       # RAAN values to try [deg]
+BASE_OMEGA_DEG_VALUES = [0, 45, 90, 135, 180]     # argument of perigee values to try [deg]
 A_GEO_VALUES          = [40e6, 50e6, 60e6]        # semi-major axis values to try [m]
-E_GEO_VALUES          = [0.2, 0.4, 0.6, 0.8]               # eccentricity values to try
+E_GEO_VALUES          = [0.2, 0.4, 0.6, 0.8]     # eccentricity values to try
 
 # These kwargs are passed to main.run() for EVERY simulation (the fixed settings).
 FIXED_KWARGS = dict(
