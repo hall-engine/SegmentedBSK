@@ -48,7 +48,7 @@ FIXED_KWARGS = dict(
     time_step_sec    = 0.5,    # sim timestep [s]
     read_every       = 100,    # mirror plotting frame interval
     show_plots       = True,   # save all plots after each sim
-    mirror_plot      = False,  # run mirror animation after each sim
+    mirror_plotting  = False,  # run mirror animation after each sim (SimConfig field)
     disable_progress = True,   # suppress tqdm in workers — bars scroll chaos in parallel
 )
 

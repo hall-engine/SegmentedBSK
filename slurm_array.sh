@@ -76,7 +76,7 @@ simulation.run(
     time_step_sec  = 0.5,
     read_every     = 100,
     show_plots     = True,
-    mirror_plot    = True,
+    mirror_plotting= True,
 )
 EOF
 

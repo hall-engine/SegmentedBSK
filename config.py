@@ -165,6 +165,7 @@ class SimConfig:
     # PARALLEL RUN FLAGS
     # ==================================================================================================
     disable_progress: bool = False   # Set True in monte_carlo workers to suppress tqdm bars
+    mirror_plotting: bool = True     # Run mirror_plotting.run() after the sim (requires mirror_control_on)
 
     # ==================================================================================================
     # OUTPUT DIRECTORY

@@ -393,7 +393,7 @@ def calculate_optimal_detector_state(cfg: SimConfig, mu: float, oe_app_start: or
 # MAIN RUN FUNCTION
 # =============================================================================
 
-def run(cfg: SimConfig = None, show_plots: bool = True, mirror_plot: bool = True, **kwargs):
+def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     """
     Execute the full formation simulation.
 
@@ -401,8 +401,8 @@ def run(cfg: SimConfig = None, show_plots: bool = True, mirror_plot: bool = True
     ----------
     cfg          : SimConfig instance (uses defaults if None)
     show_plots   : generate and save all plots when True
-    mirror_plot  : run mirror_plotting.run() after the sim (requires mirror_control_on)
-    **kwargs     : Overwrites for SimConfig attributes (e.g., app_diameter=50.0)
+    **kwargs     : Overwrites for SimConfig attributes (e.g., app_diameter=50.0,
+                   mirror_plotting=False to skip mirror animation)
     """
     if cfg is None:
         cfg = SimConfig()
@@ -933,8 +933,8 @@ def run(cfg: SimConfig = None, show_plots: bool = True, mirror_plot: bool = True
                          extra_data=extra,
                          out_dir=out_dir)
 
-    # Mirror animation — gated on both the config flag and the mirror_plot argument
-    if mirror_plot and cfg.mirror_control_on:
+    # Mirror animation — gated on both config flags
+    if cfg.mirror_plotting and cfg.mirror_control_on:
         import mirror_plotting
         mirror_plotting.run(cfg, read_every=cfg.read_every, opd_vmax=0.005, debug=False)
 
@@ -968,8 +968,7 @@ if __name__ == "__main__":
                     base_omega_deg=base_omega_deg,
                     base_raan_deg=base_raan_deg,
                     base_i_deg=base_i_deg,
-                    show_plots=True,
-                    mirror_plot=True)
+                    show_plots=True)
                 plt.close('all')
 
 
