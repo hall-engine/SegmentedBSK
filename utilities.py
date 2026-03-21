@@ -19,8 +19,11 @@ def sim_tag(cfg) -> str:
     Used as both the results sub-folder name and the plot filename suffix.
     e.g. 'sim_a45000000.0_e0.8_i-8_raan70_omega20'
     """
-    return (f"sim_a{cfg.a_geo:.2e}_e{cfg.e_geo}"
+    pathOE = (f"sim_a{cfg.a_geo:.2e}_e{cfg.e_geo}"
             f"_i{cfg.base_i_deg}_raan{cfg.base_raan_deg}_omega{cfg.base_omega_deg}")
+
+    pathSeed = f"sim_seed{cfg.random_seed}"
+    return pathSeed
 
 
 def create_sim_dir(cfg, results_base="./results"):
@@ -57,34 +60,43 @@ def save_sim_config(cfg, target_path: str):
 
 def save_states_h5(states: dict, target_path: str, filename: str = "mirror_states.h5",
                    time_arr: np.ndarray = None,
+                   mirror_time_arr: np.ndarray = None,
                    cfg=None,
-                   rel_pos_arr: np.ndarray = None,
+                   r_app_eci: np.ndarray = None,
+                   r_det_eci: np.ndarray = None,
+                   phase_arr=None,
                    rel_pos_B_arr: np.ndarray = None):
     """
-    Save mirror segment state histories to an HDF5 file.
+    Save simulation state histories to an HDF5 file.
 
     File layout
     -----------
     mirror_states.h5
-    ├── time                          (T,)    simulation time [s]
-    ├── rel_pos                       (T, 3)  detector pos − aperture pos [m]
-    ├── rel_pos_B                     (T, 3)  detector pos − aperture pos in Body frame [m]
+    ├── time                          (T_full,)   full-sim timestamps [s]
+    ├── r_app_eci                     (T_full, 3) aperture position in ECI [m]
+    ├── r_det_eci                     (T_full, 3) detector position in ECI [m]
+    ├── phase                         (T_full,)   string per tick: 'off' | 'calibrating' | 'fine'
+    ├── mirror_time                   (T_eng,)    engaged-phase timestamps [s]
+    ├── rel_pos_B                     (T_eng, 3)  detector − aperture in aperture body frame [m]
     ├── config/                       group — SimConfig fields as attrs / datasets
     └── segment_<key>/
-        ├── position                  (T, 6)  [x, y, z, θx, θy, θz]
-        ├── mirror_actuation          (T, 6)  [tip, tilt, piston, ṫip, ṫilt, ṗiston]
-        ├── desired_mirror_actuation  (T, 6)  same layout, commanded values
-        └── point_on_det_plane        (T, 2)  [dX, dY]
+        ├── position                  (T_eng, 6)  [x, y, z, θx, θy, θz]
+        ├── mirror_actuation          (T_eng, 6)  [tip, tilt, piston, ṫip, ṫilt, ṗiston]
+        ├── desired_mirror_actuation  (T_eng, 6)  same layout, commanded values
+        └── point_on_det_plane        (T_eng, 2)  [dX, dY]
 
     Parameters
     ----------
-    states      : dict mapping segment key → State object
-    target_path : directory to write the file into
-    filename    : HDF5 filename (default: "mirror_states.h5")
-    time_arr    : 1-D array of simulation timestamps [s]
-    cfg         : SimConfig dataclass instance (optional)
-    rel_pos_arr : (T, 3) array of r_detector − r_aperture in ECI [m] (optional)
-    rel_pos_B_arr : (T, 3) array of r_detector − r_aperture in Body frame [m] (optional)
+    states          : dict mapping segment key → State object
+    target_path     : directory to write the file into
+    filename        : HDF5 filename (default: "mirror_states.h5")
+    time_arr        : (T_full,) full-sim timestamps [s]
+    mirror_time_arr : (T_eng,) engaged-phase timestamps [s]
+    cfg             : SimConfig dataclass instance (optional)
+    r_app_eci       : (T_full, 3) aperture ECI position [m]
+    r_det_eci       : (T_full, 3) detector ECI position [m]
+    phase_arr       : (T_full,) list/array of phase strings per tick
+    rel_pos_B_arr   : (T_eng, 3) relative position in aperture body frame [m]
     """
     import dataclasses
 
@@ -92,15 +104,35 @@ def save_states_h5(states: dict, target_path: str, filename: str = "mirror_state
     with h5py.File(file_path, "w") as f:
         f.attrs["n_segments"] = len(states)
 
-        # ── Time ──────────────────────────────────────────────────────────────
+        # ── Full-sim time ──────────────────────────────────────────────────────
         if time_arr is not None:
-            f.create_dataset("time", data=np.array(time_arr), compression="gzip")
+            f.create_dataset("time", data=np.array(time_arr, dtype=np.float64),
+                             compression="gzip")
 
-        # ── Relative position (r_det - r_app) ─────────────────────────────────
-        if rel_pos_arr is not None:
-            f.create_dataset("rel_pos", data=np.array(rel_pos_arr), compression="gzip")
+        # ── Aperture & Detector ECI positions (full sim cadence) ───────────────
+        if r_app_eci is not None:
+            f.create_dataset("r_app_eci", data=np.array(r_app_eci, dtype=np.float64),
+                             compression="gzip")
+        if r_det_eci is not None:
+            f.create_dataset("r_det_eci", data=np.array(r_det_eci, dtype=np.float64),
+                             compression="gzip")
+
+        # ── Phase labels (full sim cadence) ───────────────────────────────────
+        # Stored as variable-length UTF-8 strings so 'off' / 'calibrating' / 'fine'
+        # are human-readable when opened with h5py or HDFView.
+        if phase_arr is not None:
+            _ph = np.array([str(p) for p in phase_arr], dtype=h5py.special_dtype(vlen=str))
+            f.create_dataset("phase", data=_ph, compression="gzip")
+
+        # ── Engaged-phase (mirror) timestamps ─────────────────────────────────
+        if mirror_time_arr is not None:
+            f.create_dataset("mirror_time", data=np.array(mirror_time_arr, dtype=np.float64),
+                             compression="gzip")
+
+        # ── Relative position in aperture body frame (engaged cadence) ─────────
         if rel_pos_B_arr is not None:
-            f.create_dataset("rel_pos_B", data=np.array(rel_pos_B_arr), compression="gzip")
+            f.create_dataset("rel_pos_B", data=np.array(rel_pos_B_arr, dtype=np.float64),
+                             compression="gzip")
 
         # ── Config ────────────────────────────────────────────────────────────
         if cfg is not None:
@@ -113,7 +145,7 @@ def save_states_h5(states: dict, target_path: str, filename: str = "mirror_state
                     cfg_grp.create_dataset(field.name, data=np.array(val))
                 # skip non-serialisable types (e.g. numpy matrix)
 
-        # ── Segment histories ─────────────────────────────────────────────────
+        # ── Segment histories (engaged cadence) ───────────────────────────────
         for key, state in states.items():
             grp = f.create_group(f"segment_{key}")
             grp.attrs["segment_number"] = int(state.number)

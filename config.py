@@ -47,10 +47,10 @@ class SimConfig:
     # MISSION TIMING
     # ==================================================================================================
     ### -important
-    period_multiple: float = 0.45               # THIS ONE Fraction of orbital period to simulate
+    period_multiple: float = 0.15               # THIS ONE Fraction of orbital period to simulate
     ### -important
     cal_window_sec: float = 600.0               # Calibration phase duration [s]
-    obs_window_sec: float = 1200.0              # Observation phase duration [s]
+    obs_window_sec: float = 600.0              # Observation phase duration [s]
     target_eccentric_anomaly_deg: float = 90.0  # Eccentric anomaly for peak concentration [deg]
     time_step_sec: float = 0.1                  # Simulation step [s]
 
@@ -170,4 +170,4 @@ class SimConfig:
     # ==================================================================================================
     # OUTPUT DIRECTORY
     # ==================================================================================================
-    results_base: str = "./results/monte_carlo_sweep"
+    results_base: str = "./results/random_sweep"

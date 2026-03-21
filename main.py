@@ -422,6 +422,13 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
         else:
             print(f"  [Message] No SimConfig overwrites detected - using congig.py")
 
+    # Seed all stochastic components using cfg.random_seed (set AFTER kwarg overwrites
+    # so that random_seed can be overridden from the Monte Carlo grid / SLURM array).
+    import random as _random
+    np.random.seed(cfg.random_seed)
+    _random.seed(cfg.random_seed)
+    print(f"  [RNG] Seeded with random_seed = {cfg.random_seed}")
+
     # Derive star_vector from the orbital plane normal (must come AFTER kwarg overwrites
     # so that any base_i_deg / base_raan_deg overrides are already applied).
     cfg.star_vector = orbital_plane_normal(cfg.base_i_deg, cfg.base_raan_deg)
@@ -914,19 +921,21 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
         cfg.out_dir = out_dir
 
         save_sim_config(cfg, out_dir)
+        t_arr = app_log.times() * macros.NANO2SEC   # full-sim timestamps [s]
         if cfg.mirror_control_on:
-            _mirror_time   = np.array(fsw.mirror_time_list)
-            # Use the engaged-phase-only body-frame relative position (co-indexed with mirror time)
-            _rel_pos_B     = np.array(fsw.mirror_r_rel_B_list)
-            # Full-sim ECI relative position from BSK recorders (no Python list needed)
-            _rel_pos_eci   = det_log.r_BN_N - app_log.r_BN_N
+            _full_time    = t_arr                                  # full-sim timestamps [s]
+            _mirror_time  = np.array(fsw.mirror_time_list)        # engaged-phase timestamps [s]
+            _rel_pos_B    = np.array(fsw.mirror_r_rel_B_list)     # engaged-phase body-frame r_rel
+            _phase        = list(_trim(fsw.phase_list))            # full-sim phase labels
             save_states_h5(custom_fsw.states, out_dir,
-                           time_arr=_mirror_time,
+                           time_arr=_full_time,
+                           mirror_time_arr=_mirror_time,
                            cfg=cfg,
-                           rel_pos_arr=_rel_pos_eci,
+                           r_app_eci=app_log.r_BN_N,
+                           r_det_eci=det_log.r_BN_N,
+                           phase_arr=_phase,
                            rel_pos_B_arr=_rel_pos_B)
 
-        t_arr = app_log.times() * macros.NANO2SEC
 
         plotting.run_all(app_log, det_log,
                          t_arr,
