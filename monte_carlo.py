@@ -37,8 +37,8 @@ import itertools
 # The grid calculates every unique combination of these variables.
 # Total Runs = len(RING_VALUES) * len(FOCAL_LENGTH_VALUES)
 
-RING_VALUES         = [1, 2, 3]
-FOCAL_LENGTH_VALUES = [2500, 5000, 7500, 10000]
+RING_VALUES         = [1, 5, 10]
+FOCAL_LENGTH_VALUES = np.linspace(2000, 25000, 100)
 
 # These kwargs are passed to main.run() for EVERY simulation (fixed settings).
 FIXED_KWARGS = dict(

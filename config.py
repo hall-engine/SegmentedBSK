@@ -197,4 +197,4 @@ class SimConfig:
     # ==================================================================================================
     # OUTPUT DIRECTORY
     # ==================================================================================================
-    results_base: str = "./results/ring_vs_focal_sweep"
+    results_base: str = "./DBG_2_results/ring_vs_focal_sweep"
