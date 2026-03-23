@@ -1,14 +1,13 @@
 """
-monte_carlo.py — Random-seed sweep for the formation simulation
+monte_carlo.py — Semi-major axis sweep for the formation simulation
 ===============================================================
-Runs the same orbital configuration (from config.py defaults) N times, each
-with a different random_seed, to quantify stochastic variability from CSS
-noise, initial mirror actuation, etc.
+Runs the same configuration multiple times, each with a different
+semi-major axis (a_geo), to quantify variability across orbital altitudes.
 
 Run with:
     python monte_carlo.py
 
-Edit RANDOM_SEED_VALUES below to control which seeds are swept.
+Edit A_GEO_VALUES below to control which semi-major axes are swept.
 Edit N_WORKERS to control parallelism.
 
 Notes
@@ -26,24 +25,30 @@ Notes
 import multiprocessing
 import os
 import traceback
+import numpy as np
 
 import matplotlib
 matplotlib.use("Agg")   # no display in worker processes
 
 
-# ─── SEED LIST ────────────────────────────────────────────────────────────────
-# Each value becomes one independent simulation run using the orbital defaults
-# in config.py.  Add/remove seeds as needed.
+import itertools
 
-RANDOM_SEED_VALUES = list(range(1, 30))   # seeds 1 … 20  (20 replicates)
+# ─── PARAMETER GRID ────────────────────────────────────────────────────────────
+# The grid calculates every unique combination of these variables.
+# Total Runs = len(A_GEO) * len(I_VALUES) * len(OMEGA_VALUES)
+
+A_GEO_VALUES = np.linspace(40e6, 42e6, num=3)
+I_VALUES     = np.linspace(135, 285, num=5)
+OMEGA_VALUES = np.linspace(135, 285, num=5)
 
 # These kwargs are passed to main.run() for EVERY simulation (fixed settings).
 FIXED_KWARGS = dict(
-    time_step_sec    = 0.5,    # sim timestep [s]
-    read_every       = 100,    # mirror plotting frame interval
-    show_plots       = True,   # save all plots after each sim
-    mirror_plotting  = False,  # run mirror animation (slow — keep False for sweeps)
-    disable_progress = True,   # suppress tqdm in workers
+    time_step_sec    = 0.5,     # sim timestep [s]
+    read_every       = 100,     # mirror plotting frame interval
+    show_plots       = False,   # save all plots after each sim
+    save_data        = True,    # keep h5 and config saved
+    mirror_plotting  = False,   # run mirror animation (slow — keep False for sweeps)
+    disable_progress = True,    # suppress tqdm in workers
 )
 
 # Number of sims to run simultaneously.
@@ -64,8 +69,12 @@ def _worker(kwargs: dict) -> str:
     from config import SimConfig
     import main as simulation
 
-    seed = kwargs.get("random_seed")
-    tag  = f"seed={seed}"
+    a_geo = kwargs.get("a_geo")
+    i_deg = kwargs.get("base_i_deg")
+    O_deg = kwargs.get("base_omega_deg")
+    
+    # Tag logic for printouts
+    tag  = f"a={a_geo/1e6:.2f}M_i={i_deg:.0f}_O={O_deg:.0f}"
     print(f"[START] {tag}", flush=True)
     try:
         cfg = SimConfig()
@@ -80,11 +89,14 @@ def _worker(kwargs: dict) -> str:
 
 
 def build_param_grid() -> list[dict]:
-    """Return one kwarg dict per seed."""
+    """Return one kwarg dict per parameter set."""
     grid = []
-    for seed in RANDOM_SEED_VALUES:
+    # Generate every massive combinatorics tuple via python's itertools!
+    for a_geo, i_deg, O_deg in itertools.product(A_GEO_VALUES, I_VALUES, OMEGA_VALUES):
         kw = dict(FIXED_KWARGS)
-        kw["random_seed"] = seed
+        kw["a_geo"] = float(a_geo)
+        kw["base_i_deg"] = float(i_deg)
+        kw["base_omega_deg"]  = float(O_deg)
         grid.append(kw)
     return grid
 
@@ -94,18 +106,39 @@ if __name__ == "__main__":
 
     grid      = build_param_grid()
     n_sims    = len(grid)
-    n_workers = min(N_WORKERS, n_sims)
+    
+    import argparse
+    import sys
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--array-id", type=int, default=None, 
+                        help="Inject a specific grid index directly (used by SLURM Mode B)")
+    args = parser.parse_args()
 
-    print("=" * 60)
-    print(f"  Seed sweep: {n_sims} sims, {n_workers} parallel workers")
-    print(f"  Seeds: {RANDOM_SEED_VALUES}")
-    print("=" * 60)
+    if args.array_id is not None:
+        # MODE B: Array Task Run (Single Core)
+        idx = args.array_id
+        if idx < 0 or idx >= n_sims:
+            print(f"Error: SLURM Array ID {idx} does not map to a grid index (0 to {n_sims-1})")
+            sys.exit(1)
+        print(f"=== SLURM Array Mode Injected: Executing grid index {idx}/{n_sims-1} ===")
+        res = _worker(grid[idx])
+        print(res)
+    else:
+        # MODE A: Full Multiprocessing Parallel Sweep
+        n_workers = min(N_WORKERS, n_sims)
 
-    with multiprocessing.Pool(processes=n_workers) as pool:
-        results = pool.map(_worker, grid)
+        print("=" * 60)
+        print(f"  3D Parameter Sweep: {n_sims} sims, {n_workers} parallel workers")
+        print(f"  a_geo: {len(A_GEO_VALUES)} steps")
+        print(f"  i_deg: {len(I_VALUES)} steps")
+        print(f"  O_deg: {len(OMEGA_VALUES)} steps")
+        print("=" * 60)
 
-    print("\n" + "=" * 60)
-    print("  Results summary:")
-    for r in results:
-        print(f"    {r}")
-    print("=" * 60)
+        with multiprocessing.Pool(processes=n_workers) as pool:
+            results = pool.map(_worker, grid)
+
+        print("\n" + "=" * 60)
+        print("  Results summary:")
+        for r in results:
+            print(f"    {r}")
+        print("=" * 60)

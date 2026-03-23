@@ -7,38 +7,39 @@
 #
 #   MODE A (default): Single node, many cores — runs monte_carlo.py which
 #                     uses Python multiprocessing internally.
-#                     Best when all seeds fit on one large node.
+#                     Best when all semi-major axes fit on one large node.
 #
 #   MODE B:           Multi-node SLURM array — each array task runs ONE
-#                     simulation (one seed) on its own core independently.
-#                     Best for large seed counts or long runs.
+#                     simulation (one a_geo) on its own core independently.
+#                     Best for large parameter counts or long runs.
 #
 # Submit:
 #   MODE A:  sbatch RUNSIM.job
-#   MODE B:  sbatch --array=0-<N_SEEDS-1> RUNSIM.job
-#            e.g. for 20 seeds:  sbatch --array=0-19 RUNSIM.job
+#   MODE B:  sbatch --array=0-<N_PARAMS-1> RUNSIM.job
+#            e.g. for 5 values:  sbatch --array=0-4 RUNSIM.job
 # =============================================================================
 
 # ─── Shared settings (both modes) ─────────────────────────────────────────────
 #SBATCH --account=dbarnhar_1592
-#SBATCH --job-name=optical_reef_seeds
+#SBATCH --job-name=optical_reef_a_geo
 #SBATCH --output=logs/mc_%j.out
 #SBATCH --error=logs/mc_%j.err
 #SBATCH --time=53:00:00
 
 # =============================================================================
 # MODE A — Single node, multiprocessing (monte_carlo.py)
-# cpus-per-task should match or exceed the number of seeds being swept.
+# cpus-per-task should match or exceed the number of parameters being swept.
 # =============================================================================
 ##SBATCH --partition=largemem
 ##SBATCH --nodes=1
 ##SBATCH --ntasks=1
-##SBATCH --cpus-per-task=20            # one worker per seed (tune to RANDOM_SEED_VALUES length)
+##SBATCH --cpus-per-task=5             # one worker per param
 ##SBATCH --mem=128G                    # ~4-8 GB per worker × cpus-per-task
 
 # =============================================================================
 # MODE B — Multi-node array (one sim per task)
-# sbatch --array=0-19  →  20 separate jobs, each runs exactly 1 seed
+# For the full 25x3x3 grid (225 simulations), run:
+# sbatch --array=0-224 RUNSIM.job
 # =============================================================================
 #SBATCH --partition=main
 #SBATCH --nodes=1
@@ -70,7 +71,7 @@ export PYTHONPATH="$HOME/basilisk/dist3:$SIM_DIR:${PYTHONPATH:-}"
 mkdir -p logs
 
 # =============================================================================
-# MODE A — launch the parallel seed sweep
+# MODE A — launch the parallel a_geo sweep
 # =============================================================================
 if [ -z "${SLURM_ARRAY_TASK_ID:-}" ]; then
     echo "=== MODE A: single-node multiprocessing ==="
@@ -83,37 +84,15 @@ if [ -z "${SLURM_ARRAY_TASK_ID:-}" ]; then
     echo "Finished: $(date)"
 
 # =============================================================================
-# MODE B — single seed selected by SLURM array index
-# The seed value is simply: index + 1  (seed 1, 2, 3, … N)
-# To use a custom list, replace the arithmetic with an array lookup.
+# MODE B — single a_geo selected by SLURM array index
 # =============================================================================
 else
     echo "=== MODE B: array task $SLURM_ARRAY_TASK_ID ==="
     echo "Node:     $(hostname)"
     echo "Started:  $(date)"
 
-    # Seed = array index + 1  (task 0 → seed 1, task 1 → seed 2, …)
-    SEED=$(( SLURM_ARRAY_TASK_ID + 1 ))
-    echo "Running: seed=$SEED"
+    echo "Delegating parameter grid resolution to monte_carlo.py..."
 
-    "$VENV_PYTHON" - <<PYEOF
-import sys, matplotlib
-matplotlib.use("Agg")
-sys.path.insert(0, "$SIM_DIR")
-from config import SimConfig
-import main as simulation
-
-cfg = SimConfig()
-simulation.run(
-    cfg,
-    random_seed     = $SEED,
-    time_step_sec   = 0.5,
-    read_every      = 100,
-    show_plots      = True,
-    mirror_plotting = False,
-    disable_progress= True,
-)
-PYEOF
-
+    "$VENV_PYTHON" "$SIM_DIR/monte_carlo.py" --array-id="$SLURM_ARRAY_TASK_ID"
     echo "Finished: $(date)"
 fi

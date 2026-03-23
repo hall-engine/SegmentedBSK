@@ -627,17 +627,18 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     app_mgr = SpacecraftManager(sim, app_sc, task_name)
     app_mgr.set_geometric_properties(cfg.app_mass, cfg.app_shape,
                                       cfg.app_side, cfg.app_height)
-    app_mgr.add_rw_cluster()
-    app_mgr.add_simple_nav()
+    app_mgr.add_rw_cluster(enable_jitter=cfg.enable_rw_jitter, initial_omega=cfg.rw_initial_omega_radps)
+    app_mgr.add_simple_nav(enable_noise=cfg.enable_metrology_noise, noise_std=cfg.metrology_noise_std)
     # NOTE: attitude control for Aperture is set up inside FormationManager
 
     det_mgr = SpacecraftManager(sim, det_sc, task_name)
     det_mgr.set_geometric_properties(cfg.det_mass, cfg.det_shape,
                                       cfg.det_side, cfg.det_height)
-    det_mgr.add_rw_cluster()
+    det_mgr.add_rw_cluster(enable_jitter=cfg.enable_rw_jitter, initial_omega=cfg.rw_initial_omega_radps)
     # NOTE: Translation is commanded via ExtForceTorque (idealized impulsive control).
     # ThrusterDynamicEffector is intentionally not registered — thrusters are unused.
-    det_mgr.add_simple_nav()
+    det_mgr.add_simple_nav(enable_noise=cfg.enable_metrology_noise, noise_std=cfg.metrology_noise_std)
+
 
     # Optional CSS navigation noise
     if cfg.enable_css_noise and sun_msg is not None:
@@ -876,9 +877,9 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     print(">> Simulation complete.")
 
     # =========================================================================
-    # 14. Plots
+    # 14. Data Saving & Plots
     # =========================================================================
-    if show_plots:
+    if show_plots or getattr(cfg, 'save_data', True):
         fsw = custom_fsw  # alias for readability
 
         # The FSW lists are seeded with one t=0 entry before the sim runs,
@@ -920,27 +921,43 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
         out_dir = create_sim_dir(cfg, results_base=cfg.results_base)
         cfg.out_dir = out_dir
 
-        save_sim_config(cfg, out_dir)
-        t_arr = app_log.times() * macros.NANO2SEC   # full-sim timestamps [s]
-        if cfg.mirror_control_on:
-            _full_time    = t_arr                                  # full-sim timestamps [s]
-            _mirror_time  = np.array(fsw.mirror_time_list)        # engaged-phase timestamps [s]
-            _rel_pos_B    = np.array(fsw.mirror_r_rel_B_list)     # engaged-phase body-frame r_rel
-            _phase        = list(_trim(fsw.phase_list))            # full-sim phase labels
-            save_states_h5(custom_fsw.states, out_dir,
-                           time_arr=_full_time,
-                           mirror_time_arr=_mirror_time,
-                           cfg=cfg,
-                           r_app_eci=app_log.r_BN_N,
-                           r_det_eci=det_log.r_BN_N,
-                           phase_arr=_phase,
-                           rel_pos_B_arr=_rel_pos_B)
+        if getattr(cfg, 'save_data', True):
+            save_sim_config(cfg, out_dir)
+            t_arr = app_log.times() * macros.NANO2SEC   # full-sim timestamps [s]
+            if cfg.mirror_control_on:
+                _full_time    = t_arr                                  # full-sim timestamps [s]
+                _mirror_time  = np.array(fsw.mirror_time_list)        # engaged-phase timestamps [s]
+                _rel_pos_B    = np.array(fsw.mirror_r_rel_B_list)     # engaged-phase body-frame r_rel
+                _phase        = list(_trim(fsw.phase_list))            # full-sim phase labels
+
+                # Compute attitude conversions (Full Cadence)
+                from Basilisk.utilities import RigidBodyKinematics as rbk
+                sigma_SN = rbk.C2MRP(aperture_frame_dcm)
+                
+                # Vectorised conversions
+                _sigma_app_star = np.array([rbk.subMRP(s, sigma_SN) for s in app_log.sigma_BN])
+                _sigma_det_star = np.array([rbk.subMRP(s, sigma_SN) for s in det_log.sigma_BN])
+                _rel_sigma_B    = np.array([rbk.subMRP(sd, sa) for sd, sa in zip(det_log.sigma_BN, app_log.sigma_BN)])
+
+                save_states_h5(custom_fsw.states, out_dir,
+                               time_arr=_full_time,
+                               mirror_time_arr=_mirror_time,
+                               cfg=cfg,
+                               r_app_eci=app_log.r_BN_N,
+                               r_det_eci=det_log.r_BN_N,
+                               phase_arr=_phase,
+                               rel_pos_B_arr=_rel_pos_B,
+                               sigma_app_star=_sigma_app_star,
+                               sigma_det_star=_sigma_det_star,
+                               rel_sigma_B_arr=_rel_sigma_B)
 
 
-        plotting.run_all(app_log, det_log,
-                         t_arr,
-                         extra_data=extra,
-                         out_dir=out_dir)
+        if show_plots:
+            t_arr = app_log.times() * macros.NANO2SEC   # full-sim timestamps [s]
+            plotting.run_all(app_log, det_log,
+                             t_arr,
+                             extra_data=extra,
+                             out_dir=out_dir)
 
     # Mirror animation — gated on both config flags
     if cfg.mirror_plotting and cfg.mirror_control_on:

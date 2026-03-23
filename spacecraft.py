@@ -106,14 +106,23 @@ class SpacecraftManager:
 
     # ─── Reaction Wheels ──────────────────────────────────────────────────────
 
-    def add_rw_cluster(self, num_wheels: int = 3, max_momentum: float = 50.0):
+    def add_rw_cluster(self, num_wheels: int = 3, max_momentum: float = 50.0, enable_jitter: bool = False, initial_omega: float = 0.0):
         """Add an orthogonal 3-wheel Honeywell HR16 RW cluster."""
         factory = simIncludeRW.rwFactory()
         dirs = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+        
+        rw_model = messaging.JitterSimple if enable_jitter else messaging.BalancedWheels
         for i in range(min(num_wheels, 3)):
-            factory.create("Honeywell_HR16", dirs[i],
-                           maxMomentum=max_momentum,
-                           RWModel=messaging.BalancedWheels)
+            if enable_jitter:
+                # Bias wheels to initial spin (rad/s) so Jitter forces actually activate!
+                factory.create("Honeywell_HR16", dirs[i],
+                               maxMomentum=max_momentum,
+                               RWModel=rw_model,
+                               Omega=initial_omega)
+            else:
+                factory.create("Honeywell_HR16", dirs[i],
+                               maxMomentum=max_momentum,
+                               RWModel=rw_model)
 
         self.rw_effector = reactionWheelStateEffector.ReactionWheelStateEffector()
         self.rw_effector.ModelTag = f"{self.sc.ModelTag}_RW"
@@ -126,7 +135,7 @@ class SpacecraftManager:
 
     # ─── Navigation ───────────────────────────────────────────────────────────
 
-    def add_simple_nav(self):
+    def add_simple_nav(self, enable_noise: bool = False, noise_std: float = 0.0005):
         """
         Add SimpleNav translator/attitude navigation module.
         
@@ -138,6 +147,17 @@ class SpacecraftManager:
         self.nav = simpleNav.SimpleNav()
         self.nav.ModelTag = f"{self.sc.ModelTag}_Nav"
         
+        if enable_noise:
+            # Add Gaussian white noise to the translation outputs (metrology position noise)
+            # SimpleNav state vector is 18x1. Position is indices [0, 1, 2].
+            PMatrix = [[0.0]*18 for _ in range(18)]
+            PMatrix[0][0] = PMatrix[1][1] = PMatrix[2][2] = noise_std**2
+            self.nav.PMatrix = PMatrix
+            
+            walkBounds = [0.0]*18
+            walkBounds[0] = walkBounds[1] = walkBounds[2] = 10.0 * noise_std
+            self.nav.walkBounds = walkBounds
+            
         # Subscribe to spacecraft output message to receive true r_CN_N and v_CN_N states
         self.nav.scStateInMsg.subscribeTo(self.sc.scStateOutMsg)
         
@@ -187,7 +207,10 @@ class SpacecraftManager:
         los.ModelTag = f"{self.sc.ModelTag}_LOSPoint"
         los.chiefPositionInMsg.subscribeTo(chief_nav_trans_msg)
         los.deputyPositionInMsg.subscribeTo(self.nav.transOutMsg)
-        los.alignmentVector_B = [0., 0., 1.]
+        # Add a 1e-6 epsilon to X to permanently prevent mathematical Gimbal Lock
+        # Divide-by-Zero singularity when attempting to pitch 180-degrees perfectly
+        # along the Z-axis (which happens exclusively during i=0.0 equatorial orbits!)
+        los.alignmentVector_B = [1e-6, 0., 1.]
         self.sim.AddModelToTask(self.task_name, los)
 
         self._add_tracking_error(los.attReferenceOutMsg, K, Ki, P)

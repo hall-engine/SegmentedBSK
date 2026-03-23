@@ -34,7 +34,7 @@ class SimConfig:
     # (Both share a, e, RAAN, ω.  Only inclination and initial true anomaly differ.)
     use_focal_designator: bool  = True    # If True, auto-compute det_delta_i_deg from target_focal_length
     det_delta_i_deg: float      = 0.012  # [deg] inclination offset (overridden when use_focal_designator=True)
-    det_lag_f_deg:   float      = 0.0    # [deg] true anomaly lag: f_det = f_app - det_lag_f_deg
+    det_lag_f_deg:   float      = 0.005    # [deg] true anomaly lag: f_det = f_app - det_lag_f_deg
 
     # The star_vector is computed automatically from orbital_plane_normal(i, RAAN)
     # in run() — it is the aperture orbit normal, which the aperture body +Z tracks.
@@ -125,6 +125,29 @@ class SimConfig:
     # Each flag independently enables/disables a physical perturbation.
     # Set all to False for a pure two-body simulation.
 
+    enable_rw_jitter: bool = True
+    """Enable high-frequency structural micro-vibrations from the spinning reaction wheels."""
+
+    rw_initial_omega_radps: float = 104.7  # ~1000 RPM
+    """
+    Constant momentum bias applied to wheels at t=0. 
+    Required because physically simulated Jitter scales with Omega^2! 
+    Because Aperture is perfectly 0-locked, its wheels would never spin up without this bias.
+    """
+
+    enable_metrology_noise: bool = True
+    """Enable measurement noise (white noise & random walk) on the relative navigation sensors."""
+
+    metrology_noise_std: float = 0.0005
+    """1-sigma standard deviation for metrology position noise [m]. Controller sees fuzzed relative positions."""
+
+    # COMMON REACTION WHEEL PROFILES (simIncludeRW.py):
+    # ------------------------------------------------------------------
+    # "BCT_RWP015"   | Max Mom: 0.015 Nms | Cubesat Scale, Micro-Jitter
+    # "Sinclair_rx1" | Max Mom: 1.0 Nms   | SmallSat Scale
+    # "Honeywell_HR12"| Max Mom: 12-25 Nms| Mid-size Sat (Medium Jitter)
+    # "Honeywell_HR16"| Max Mom: 50-100 Nms| Flagship Sat (High Jitter)
+
     enable_j2: bool = True
     """Analytical J2 via ExtForceTorque. Safe with all other perturbations."""
 
@@ -164,10 +187,11 @@ class SimConfig:
     # ==================================================================================================
     # PARALLEL RUN FLAGS
     # ==================================================================================================
+    save_data: bool = True           # Master switch to save h5 data and sim config
     disable_progress: bool = False   # Set True in monte_carlo workers to suppress tqdm bars
     mirror_plotting: bool = True     # Run mirror_plotting.run() after the sim (requires mirror_control_on)
 
     # ==================================================================================================
     # OUTPUT DIRECTORY
     # ==================================================================================================
-    results_base: str = "./results/random_sweep"
+    results_base: str = "./results/a_i_Omega_sweep"

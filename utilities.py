@@ -23,7 +23,9 @@ def sim_tag(cfg) -> str:
             f"_i{cfg.base_i_deg}_raan{cfg.base_raan_deg}_omega{cfg.base_omega_deg}")
 
     pathSeed = f"sim_seed{cfg.random_seed}"
-    return pathSeed
+
+    pathA_I_Omega = f"sim_a{cfg.a_geo:.2e}_i{cfg.base_i_deg}_omega{cfg.base_omega_deg}"
+    return pathA_I_Omega
 
 
 def create_sim_dir(cfg, results_base="./results"):
@@ -65,7 +67,10 @@ def save_states_h5(states: dict, target_path: str, filename: str = "mirror_state
                    r_app_eci: np.ndarray = None,
                    r_det_eci: np.ndarray = None,
                    phase_arr=None,
-                   rel_pos_B_arr: np.ndarray = None):
+                   rel_pos_B_arr: np.ndarray = None,
+                   sigma_app_star: np.ndarray = None,
+                   sigma_det_star: np.ndarray = None,
+                   rel_sigma_B_arr: np.ndarray = None):
     """
     Save simulation state histories to an HDF5 file.
 
@@ -75,6 +80,9 @@ def save_states_h5(states: dict, target_path: str, filename: str = "mirror_state
     ├── time                          (T_full,)   full-sim timestamps [s]
     ├── r_app_eci                     (T_full, 3) aperture position in ECI [m]
     ├── r_det_eci                     (T_full, 3) detector position in ECI [m]
+    ├── sigma_app_star                (T_full, 3) aperture attitude MRP relative to Star Frame
+    ├── sigma_det_star                (T_full, 3) detector attitude MRP relative to Star Frame
+    ├── rel_sigma_B                   (T_full, 3) relative attitude MRP (Detector wrt Aperture)
     ├── phase                         (T_full,)   string per tick: 'off' | 'calibrating' | 'fine'
     ├── mirror_time                   (T_eng,)    engaged-phase timestamps [s]
     ├── rel_pos_B                     (T_eng, 3)  detector − aperture in aperture body frame [m]
@@ -97,6 +105,9 @@ def save_states_h5(states: dict, target_path: str, filename: str = "mirror_state
     r_det_eci       : (T_full, 3) detector ECI position [m]
     phase_arr       : (T_full,) list/array of phase strings per tick
     rel_pos_B_arr   : (T_eng, 3) relative position in aperture body frame [m]
+    sigma_app_star  : (T_full, 3) aperture attitude MRP relative to Star Frame
+    sigma_det_star  : (T_full, 3) detector attitude MRP relative to Star Frame
+    rel_sigma_B_arr : (T_full, 3) detector attitude MRP relative to aperture frame
     """
     import dataclasses
 
@@ -132,6 +143,17 @@ def save_states_h5(states: dict, target_path: str, filename: str = "mirror_state
         # ── Relative position in aperture body frame (engaged cadence) ─────────
         if rel_pos_B_arr is not None:
             f.create_dataset("rel_pos_B", data=np.array(rel_pos_B_arr, dtype=np.float64),
+                             compression="gzip")
+
+        # ── Attitudes (full sim cadence) ──────────────────────────────────────
+        if sigma_app_star is not None:
+            f.create_dataset("sigma_app_star", data=np.array(sigma_app_star, dtype=np.float64),
+                             compression="gzip")
+        if sigma_det_star is not None:
+            f.create_dataset("sigma_det_star", data=np.array(sigma_det_star, dtype=np.float64),
+                             compression="gzip")
+        if rel_sigma_B_arr is not None:
+            f.create_dataset("rel_sigma_B", data=np.array(rel_sigma_B_arr, dtype=np.float64),
                              compression="gzip")
 
         # ── Config ────────────────────────────────────────────────────────────
