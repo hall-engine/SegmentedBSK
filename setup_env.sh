@@ -2,20 +2,17 @@
 # =============================================================================
 # setup_env.sh — HPC Environment Setup for SegmentedBSK / FasterSimulation
 # =============================================================================
+# [AI WARNING] DO NOT MODIFY THIS SCRIPT OR THE VENV CREATION LOGIC UNLESS
+# EXPLICITLY ASKED. THE EXPORTS AND PYTHON ISOLATION ARE CRITICAL FOR
+# HPC STABILITY.
+# =============================================================================
 #
 # Creates a Python virtual environment (if it doesn't exist) and installs
 # all required Python packages. Run this ONCE before submitting any SLURM jobs.
 #
 # Usage:
-#   bash setup_env.sh
-#
-# After running, activate the environment with:
-#   source ./bsk_env/bin/activate
-#
-# Then update slurm_array.sh PYTHON variable to point to:
-#   ./bsk_env/bin/python3
+# setup_env.sh — Full HPC Environment Rebuild
 # =============================================================================
-
 set -euo pipefail   # exit on error, undefined var, pipe failure
 
 # Force the script to ignore the ~/.local/ folder to prevent version conflicts
@@ -26,95 +23,26 @@ export MKL_NUM_THREADS=1
 # ─── Configuration ────────────────────────────────────────────────────────────
 ENV_DIR="$(cd "$(dirname "$0")" && pwd)/bsk_env"   # venv lives next to this script
 PYTHON_MIN_MAJOR=3
-PYTHON_MIN_MINOR=9    # Basilisk requires Python ≥ 3.9
+PYTHON_MIN_MINOR=9
 
-# ─── Helper functions ─────────────────────────────────────────────────────────
+# Logging colors (if supported)
 log()  { echo "[setup_env] $*"; }
 ok()   { echo "[setup_env] ✓  $*"; }
 warn() { echo "[setup_env] ⚠  $*"; }
 fail() { echo "[setup_env] ✗  $*" >&2; exit 1; }
 
-# ─── 1. Find a suitable Python interpreter ────────────────────────────────────
-log "Looking for a Python interpreter (≥${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR})..."
+# ─── 1. Find Python ──────────────────────────────────────────────────────────
+PYTHON="python3" # Using the module-loaded version from discovery
 
-PYTHON=""
-for candidate in python3 python python3.12 python3.11 python3.10 python3.9; do
-    if command -v "$candidate" &>/dev/null; then
-        ver=$("$candidate" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null || echo "0.0")
-        major="${ver%%.*}"
-        minor="${ver##*.}"
-        if [ "$major" -ge "$PYTHON_MIN_MAJOR" ] && [ "$minor" -ge "$PYTHON_MIN_MINOR" ]; then
-            PYTHON="$candidate"
-            ok "Using $PYTHON (version $ver)"
-            break
-        fi
-    fi
-done
-
-if [ -z "$PYTHON" ]; then
-    # On many HPC clusters Python is behind a module system — try common names
-    warn "No suitable Python found in PATH. Trying HPC module system..."
-    for mod in python/3.11 python/3.10 python3/3.11 python3/3.10; do
-        if module load "$mod" &>/dev/null 2>&1; then
-            PYTHON="python3"
-            ok "Loaded module $mod"
-            break
-        fi
-    done
-fi
-
-if [ -z "$PYTHON" ]; then
-    fail "Could not find Python ≥ ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}. " \
-         "Load the appropriate module manually (e.g. 'module load python/3.11') " \
-         "and re-run this script."
-fi
-
-# ─── 2. Check if Basilisk is importable (must be pre-installed on the HPC) ───
-log "Checking for Basilisk..."
-if "$PYTHON" -c "from Basilisk.architecture import messaging" &>/dev/null 2>&1; then
-    ok "Basilisk already importable from the system Python."
-    BASILISK_PYTHON="$PYTHON"   # we can use system python with its Basilisk
-else
-    # Basilisk may live in a specific conda/venv — check common HPC locations
-    warn "Basilisk not found in '$PYTHON'. Searching common HPC locations..."
-    BASILISK_PYTHON=""
-    for bsk_candidate in \
-        "$HOME/basilisk/dist3/bsk_env/bin/python3" \
-        "$HOME/dev/basilisk_env/bin/python3" \
-        "$HOME/basilisk_env/bin/python3" \
-        "/opt/basilisk/bin/python3"; do
-        if [ -x "$bsk_candidate" ] && "$bsk_candidate" -c "from Basilisk.architecture import messaging" &>/dev/null 2>&1; then
-            BASILISK_PYTHON="$bsk_candidate"
-            ok "Found Basilisk-capable Python: $BASILISK_PYTHON"
-            break
-        fi
-    done
-
-    if [ -z "$BASILISK_PYTHON" ]; then
-        warn "============================================================"
-        warn "Basilisk not found automatically."
-        warn "Basilisk must be built/installed separately on the HPC."
-        warn "See: https://hanspeterschaub.info/basilisk/Install/installBasilisk.html"
-        warn "After installing, add its site-packages to PYTHONPATH:"
-        warn "  export PYTHONPATH=\$HOME/basilisk/dist3:\$PYTHONPATH"
-        warn "Then re-run this script."
-        warn "============================================================"
-        # We continue anyway — other packages can still be installed
-        BASILISK_PYTHON="$PYTHON"
-    else
-        PYTHON="$BASILISK_PYTHON"
-    fi
-fi
-
-# ─── 3. Create virtual environment ────────────────────────────────────────────
+# ─── 2. Create virtual environment ────────────────────────────────────────────
 if [ -d "$ENV_DIR" ]; then
-    ok "Virtual environment already exists at $ENV_DIR — skipping creation."
-else
-    log "Creating virtual environment at $ENV_DIR ..."
-    # --system-site-packages lets the venv see any system-level Basilisk install
-    "$PYTHON" -m venv --system-site-packages "$ENV_DIR"
-    ok "Virtual environment created."
+    log "Removing existing environment at $ENV_DIR..."
+    rm -rf "$ENV_DIR"
 fi
+
+log "Creating clean virtual environment at $ENV_DIR ..."
+"$PYTHON" -m venv --system-site-packages "$ENV_DIR"
+ok "Environment created."
 
 VENV_PYTHON="$ENV_DIR/bin/python3"
 VENV_PIP="$ENV_DIR/bin/pip"
