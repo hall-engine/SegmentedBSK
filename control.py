@@ -43,7 +43,8 @@ class MissionController:
         self.star_hat = sv / np.linalg.norm(sv)
 
         # Control state
-        self._integral = np.zeros(3)
+        self._integral    = np.zeros(3)
+        self.prev_force_n = np.zeros(3)
 
     # ─── Phase Logic ──────────────────────────────────────────────────────────
 
@@ -144,13 +145,29 @@ class MissionController:
 
         # 3. Thruster Quantization (Minimum Impulse Bit equivalent force)
         mib = cfg.thruster_mib_n
-        force_n = np.round(force_n_raw / mib) * mib
+        
+        if cfg.use_hysteresis:
+            # Schmitt Trigger / Hysteresis logic:
+            # Only change the commanded force level if the new request is 
+            # significantly far (0.5 + slack) from the current level.
+            # This stops the 1mN "hunting" at the 0.5mN rounding boundary.
+            slack = 0.2 * mib 
+            diff  = force_n_raw - self.prev_force_n
+            
+            force_n = self.prev_force_n.copy()
+            for axis in range(3):
+                if abs(diff[axis]) > (0.5 * mib + slack):
+                    force_n[axis] = np.round(force_n_raw[axis] / mib) * mib
+        else:
+            force_n = np.round(force_n_raw / mib) * mib
 
+        self.prev_force_n = force_n.copy()
         return force_n
 
     def reset_integral(self):
         """Reset the integral accumulator (called when leaving engaged phase)."""
         self._integral = np.zeros(3)
+        self.prev_force_n = np.zeros(3) # Also reset force memory
 
     def target_position(self, r_c: np.ndarray, focal_length: float) -> np.ndarray:
         """Return the desired deputy position in ECI."""
