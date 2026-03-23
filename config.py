@@ -174,7 +174,13 @@ class SimConfig:
     #control_deadband_m: float = 0.00005     # [m] idle zone for controller mechanism
     control_deadband_m: float = 0.0
     
-    use_hysteresis: bool = True             # [bool] enable Schmitt trigger to prevent MIB chatter
+    # these two must be EITHER, not OR - Hys would choke PVM
+    use_hysteresis: bool = False            # [bool] enable Schmitt trigger to prevent MIB chatter
+    """ designed to stop thrusters from switiching - waits for huge error before jumping to next MIB"""
+    use_pvm: bool = True                   # [bool] enable Delta-Sigma PWM (error diffusion)
+    """ designed to keep average force precise to 1/1000th of an MIB
+        witching as much as possible to keep average
+        HANDLES GRAV DIFF AND SRP BETTER"""
 
     # ==================================================================================================
     # SRP REFLECTIVITY (used even when enable_srp=True via native module)
@@ -197,4 +203,4 @@ class SimConfig:
     # ==================================================================================================
     # OUTPUT DIRECTORY
     # ==================================================================================================
-    results_base: str = "./DBG_2_results/ring_vs_focal_sweep"
+    results_base: str = f"./DBG_2_results_pvm_{use_pvm}_hysteresis_{use_hysteresis}/ring_vs_focal_sweep"
