@@ -35,11 +35,10 @@ import itertools
 
 # ─── PARAMETER GRID ────────────────────────────────────────────────────────────
 # The grid calculates every unique combination of these variables.
-# Total Runs = len(A_GEO) * len(I_VALUES) * len(OMEGA_VALUES)
+# Total Runs = len(RING_VALUES) * len(FOCAL_LENGTH_VALUES)
 
-A_GEO_VALUES = np.linspace(40e6, 42e6, num=3)
-I_VALUES     = np.linspace(135, 285, num=5)
-OMEGA_VALUES = np.linspace(135, 285, num=5)
+RING_VALUES         = [1, 2, 3]
+FOCAL_LENGTH_VALUES = [2500, 5000, 7500, 10000]
 
 # These kwargs are passed to main.run() for EVERY simulation (fixed settings).
 FIXED_KWARGS = dict(
@@ -69,12 +68,11 @@ def _worker(kwargs: dict) -> str:
     from config import SimConfig
     import main as simulation
 
-    a_geo = kwargs.get("a_geo")
-    i_deg = kwargs.get("base_i_deg")
-    O_deg = kwargs.get("base_omega_deg")
+    rings = kwargs.get("rings")
+    focal = kwargs.get("target_focal_length")
     
     # Tag logic for printouts
-    tag  = f"a={a_geo/1e6:.2f}M_i={i_deg:.0f}_O={O_deg:.0f}"
+    tag  = f"rings={rings}_focal={focal:.0f}"
     print(f"[START] {tag}", flush=True)
     try:
         cfg = SimConfig()
@@ -92,11 +90,10 @@ def build_param_grid() -> list[dict]:
     """Return one kwarg dict per parameter set."""
     grid = []
     # Generate every massive combinatorics tuple via python's itertools!
-    for a_geo, i_deg, O_deg in itertools.product(A_GEO_VALUES, I_VALUES, OMEGA_VALUES):
+    for rings, focal in itertools.product(RING_VALUES, FOCAL_LENGTH_VALUES):
         kw = dict(FIXED_KWARGS)
-        kw["a_geo"] = float(a_geo)
-        kw["base_i_deg"] = float(i_deg)
-        kw["base_omega_deg"]  = float(O_deg)
+        kw["rings"] = int(rings)
+        kw["target_focal_length"] = float(focal)
         grid.append(kw)
     return grid
 
@@ -128,10 +125,9 @@ if __name__ == "__main__":
         n_workers = min(N_WORKERS, n_sims)
 
         print("=" * 60)
-        print(f"  3D Parameter Sweep: {n_sims} sims, {n_workers} parallel workers")
-        print(f"  a_geo: {len(A_GEO_VALUES)} steps")
-        print(f"  i_deg: {len(I_VALUES)} steps")
-        print(f"  O_deg: {len(OMEGA_VALUES)} steps")
+        print(f"  2D Parameter Sweep: {n_sims} sims, {n_workers} parallel workers")
+        print(f"  rings: {len(RING_VALUES)} steps")
+        print(f"  focal: {len(FOCAL_LENGTH_VALUES)} steps")
         print("=" * 60)
 
         with multiprocessing.Pool(processes=n_workers) as pool:

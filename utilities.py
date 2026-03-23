@@ -25,7 +25,10 @@ def sim_tag(cfg) -> str:
     pathSeed = f"sim_seed{cfg.random_seed}"
 
     pathA_I_Omega = f"sim_a{cfg.a_geo:.2e}_i{cfg.base_i_deg}_omega{cfg.base_omega_deg}"
-    return pathA_I_Omega
+
+    path_app_focal_sweep = f'app_{cfg.app_estimate_area:.2f}_focal_{cfg.target_focal_length}'
+
+    return path_app_focal_sweep
 
 
 def create_sim_dir(cfg, results_base="./results"):
