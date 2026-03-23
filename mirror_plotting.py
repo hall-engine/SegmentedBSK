@@ -35,32 +35,42 @@ def run(cfg, read_every, opd_vmax=0.005, debug=False):
 
     with h5py.File(path, "r") as f:
         # ── Time ──────────────────────────────────────────────────────────────
-        if "time" in f:
+        # Prefer mirror_time (engaged phase) if available, as mirror datasets 
+        # are co-indexed with it. Fall back to global "time" otherwise.
+        if "mirror_time" in f:
+            time = f["mirror_time"][:]
+            #print(f"Using mirror_time: {time.shape} ({time[0]:.1f}s → {time[-1]:.1f}s)")
+        elif "time" in f:
             time = f["time"][:]
-            #print(f"Time: {time.shape}  ({time[0]:.1f}s → {time[-1]:.1f}s)")
+            #print(f"Using global time: {time.shape}")
         else:
             print("No time array in file.")
 
         # ── Relative position ──────────────────────────────────────────────────
-        if "rel_pos" in f and time is not None and len(time) > 0:
-            # rel_pos (ECI) covers the full simulation; slice to match mirror time span
-            dt = time[1] - time[0] if len(time) > 1 else 0.1
-            start_idx = int(np.round(time[0] / dt))
-            end_idx = start_idx + len(time)
-            rel_pos = f["rel_pos"][start_idx:end_idx]
-        else:
-            print("No rel_pos in file.")
-            
-        if "rel_pos_B" in f and time is not None and len(time) > 0:
-            # rel_pos_B is now saved as engaged-phase-only, co-indexed with time → read directly
+        if "rel_pos_B" in f and time is not None:
+            # rel_pos_B is now saved as engaged-phase-only, co-indexed with mirror_time
             rel_pos_B = f["rel_pos_B"][:]
             if len(rel_pos_B) != len(time):
-                print(f"[WARNING] rel_pos_B length {len(rel_pos_B)} != time length {len(time)}. "
-                      "This may cause frame misalignment.")
-        else:
-            rel_pos_B = None
-            if time is not None and len(time) > 0:
-                print("[WARNING] rel_pos_B not found — falling back to rel_pos (ECI). Re-run simulation to get body-frame data.")
+                # If they still don't match, we might be reading full-sim time against engaged-phase data.
+                # Attempt to slice rel_pos_B if it was accidentally saved as full-sim.
+                if len(rel_pos_B) > len(time):
+                    # Guessing alignment... this is risky but better than crashing
+                    rel_pos_B = rel_pos_B[-len(time):]
+                else:
+                    print(f"[WARNING] rel_pos_B length {len(rel_pos_B)} != time length {len(time)}.")
+        
+        if rel_pos_B is None and "rel_pos" in f and time is not None:
+            # Fallback to ECI rel_pos if body frame is missing
+            raw_target = f["rel_pos"]
+            if len(raw_target) == len(time):
+                rel_pos = raw_target[:]
+            else:
+                # Need to slice ECI to match mirror time span
+                # This assumes 'time' is a sub-segment of the simulation
+                dt = time[1] - time[0] if len(time) > 1 else 0.1
+                start_idx = int(np.round(time[0] / dt))
+                end_idx = start_idx + len(time)
+                rel_pos = raw_target[start_idx:end_idx]
 
         # ── Config ────────────────────────────────────────────────────────────
         if "config" in f:

@@ -203,4 +203,4 @@ class SimConfig:
     # ==================================================================================================
     # OUTPUT DIRECTORY
     # ==================================================================================================
-    results_base: str = f"./DBG_2_results_pvm_{use_pvm}_hysteresis_{use_hysteresis}/ring_vs_focal_sweep"
+    results_base: str = f"results/DBG_2_results_pvm_{use_pvm}_hysteresis_{use_hysteresis}/"
