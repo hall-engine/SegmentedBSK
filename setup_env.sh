@@ -18,6 +18,11 @@
 
 set -euo pipefail   # exit on error, undefined var, pipe failure
 
+# Force the script to ignore the ~/.local/ folder to prevent version conflicts
+export PYTHONNOUSERSITE=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+
 # ─── Configuration ────────────────────────────────────────────────────────────
 ENV_DIR="$(cd "$(dirname "$0")" && pwd)/bsk_env"   # venv lives next to this script
 PYTHON_MIN_MAJOR=3
@@ -145,6 +150,7 @@ PACKAGES=(
     "astropy"
     "Pillow"
     "pytest"           # required by Basilisk's unitTestSupport.py (imported at module load)
+    "bsk"              # required for additional utilities
 )
 
 log "Installing Python packages..."
