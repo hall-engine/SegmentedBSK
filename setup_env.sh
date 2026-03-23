@@ -79,6 +79,7 @@ PACKAGES=(
     "Pillow"
     "pytest"           # required by Basilisk's unitTestSupport.py (imported at module load)
     "bsk"              # required for additional utilities
+    "ipykernel"        # required for Jupyter Notebook kernel support
 )
 
 log "Installing Python packages..."
@@ -142,7 +143,12 @@ else
     warn "$EXIT_CODE package(s) failed to import. Review the output above."
 fi
 
-# ─── 7. Print usage summary ───────────────────────────────────────────────────
+# ─── 7. Register Jupyter Kernel ──────────────────────────────────────────────
+log "Registering Jupyter kernel..."
+"$VENV_PYTHON" -m ipykernel install --user --name=bsk_env --display-name="Python (BSK Env)"
+ok "Kernel 'Python (BSK Env)' registered."
+
+# ─── 8. Print usage summary ───────────────────────────────────────────────────
 echo ""
 echo "============================================================"
 echo "  Environment ready: $ENV_DIR"
