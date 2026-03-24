@@ -999,12 +999,12 @@ if __name__ == "__main__":
     cfg = SimConfig()
     run(cfg,
         read_every          = 100,     # mirror plotting frame interval
-        ff_control_dt       = 1.0,
-        mirror_control_dt   = 1.0,
+        ff_control_dt       = 0.01,
+        mirror_control_dt   = 0.01,
         show_plots          = False,   # save all plots after each sim
         save_data           = True,    # keep h5 and config saved
         mirror_plotting     = False,   # run mirror animation (slow — keep False for sweeps)
-        disable_progress    = False,    # suppress tqdm in workers
+        disable_progress    = True,    # suppress tqdm in workers
         )
     plt.close('all')
 

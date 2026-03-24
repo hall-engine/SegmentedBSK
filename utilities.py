@@ -196,9 +196,17 @@ def set_dark_transparent(ax=None, grid_alpha=0.1):
     """
     Makes plot background transparent and all text/grid/axes/colorbars white.
     Works with both plt and ax-based plotting.
+    Handles single axes or collections of axes.
     """
     if ax is None:
         ax = plt.gca()
+
+    # --- Handle collections of axes (lists, tuples, numpy arrays) ---
+    if isinstance(ax, (list, tuple, np.ndarray)):
+        for a in ax:
+            set_dark_transparent(a, grid_alpha)
+        return
+
     fig = ax.get_figure()
 
     # Transparent background

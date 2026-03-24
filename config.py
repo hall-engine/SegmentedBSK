@@ -52,9 +52,9 @@ class SimConfig:
     cal_window_sec: float = 600.0                                   # Calibration phase duration [s]
     obs_window_sec: float = 600.0                                   # Observation phase duration [s]
     target_eccentric_anomaly_deg: float = 90.0                      # Eccentric anomaly for peak concentration [deg]
-    ff_control_dt: float = 1.0                                     # Formation Flight (translation) control step [s]
-    mirror_control_dt: float = 1.0                                 # Mirror segment (optics) control step [s]
-    time_step_sec: float = 1.0    # Simulation physics step [s]
+    ff_control_dt: float = 0.01                                     # Formation Flight (translation) control step [s]
+    mirror_control_dt: float = 0.01                                 # Mirror segment (optics) control step [s]
+    time_step_sec: float = 0.01    # Simulation physics step [s]
 
     # ==================================================================================================
 
