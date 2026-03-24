@@ -47,12 +47,16 @@ class SimConfig:
     # MISSION TIMING
     # ==================================================================================================
     ### -important
-    period_multiple: float = 0.15               # THIS ONE Fraction of orbital period to simulate
+    period_multiple: float = 0.15                                   # THIS ONE Fraction of orbital period to simulate
     ### -important
-    cal_window_sec: float = 600.0               # Calibration phase duration [s]
-    obs_window_sec: float = 600.0              # Observation phase duration [s]
-    target_eccentric_anomaly_deg: float = 90.0  # Eccentric anomaly for peak concentration [deg]
-    time_step_sec: float = 0.1                  # Simulation step [s]
+    cal_window_sec: float = 600.0                                   # Calibration phase duration [s]
+    obs_window_sec: float = 600.0                                   # Observation phase duration [s]
+    target_eccentric_anomaly_deg: float = 90.0                      # Eccentric anomaly for peak concentration [deg]
+    ff_control_dt: float = 1.0                                     # Formation Flight (translation) control step [s]
+    mirror_control_dt: float = 1.0                                 # Mirror segment (optics) control step [s]
+    time_step_sec: float = 1.0    # Simulation physics step [s]
+
+    # ==================================================================================================
 
     # ==================================================================================================
     # CONTROL GAINS
@@ -203,4 +207,4 @@ class SimConfig:
     # ==================================================================================================
     # OUTPUT DIRECTORY
     # ==================================================================================================
-    results_base: str = f"results/DBG_2_results_pvm_{use_pvm}_hysteresis_{use_hysteresis}/"
+    results_base: str = f"results/time_step_sweep/"

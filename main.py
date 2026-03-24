@@ -128,6 +128,7 @@ class CustomFlightSoftwareContext(sysModel.SysModel):
         self.cumul_dv      = 0.0
         self.cumul_dv_xyz  = np.zeros(3)
         self.zero3         = np.zeros(3)
+        self.force_n_cmd  = self.zero3.copy()
 
         # ── Progress bar ───────────────────────────────────────────────────
         self.pbar = tqdm(
@@ -156,6 +157,10 @@ class CustomFlightSoftwareContext(sysModel.SysModel):
         self.moon_pos_list      = []
         self.mirror_time_list     = []   # timestamps [s] for engaged-phase ticks only
         self.mirror_r_rel_B_list  = []   # aperture-frame r_rel at engaged ticks (matches mirror_time_list)
+        
+        # ── Control Timers ─────────────────────────────────────────────────
+        self.last_ff_time  = -1.0
+        self.last_mir_time = -1.0
 
     def __del__(self):
         # Hand ownership back to SWIG so it doesn't warn about a missing
@@ -204,20 +209,19 @@ class CustomFlightSoftwareContext(sysModel.SysModel):
 
         # ── Mirror / optics (only during engaged phases) ───────────────────
         if is_engaged and cfg.mirror_control_on:
-            self.states = segmented_optics.gauge_where_pointing(
-                self.hexdm, self.states, app_state, det_state, cfg,
-                aperture_frame_dcm=self.aperture_frame_dcm
-            )
-            for s in self.states:
-                self.states[s] = self.mirror_controllers[0].lqr_control_full(
-                    self.states[s], cfg.time_step_sec
+            if (t_now_sec - self.last_mir_time) >= (cfg.mirror_control_dt - 1e-9):
+                self.last_mir_time = t_now_sec
+                self.states = segmented_optics.gauge_where_pointing(
+                    self.hexdm, self.states, app_state, det_state, cfg,
+                    aperture_frame_dcm=self.aperture_frame_dcm
                 )
-                self.states[s].store_histories()
-            self.mirror_time_list.append(t_now_sec)
-            # mirror_r_rel_B_list: relative position in the APERTURE FRAME (same frozen ECI frame
-            # as r_rel_B_list) so mirror_plotting sees the detector at (0, 0, focal_length) when
-            # formation is correct — independent of attitude residuals.
-            self.mirror_r_rel_B_list.append(self.aperture_frame_dcm @ (r_d - r_c))
+                for s in self.states:
+                    self.states[s] = self.mirror_controllers[0].lqr_control_full(
+                        self.states[s], cfg.mirror_control_dt
+                    )
+                    self.states[s].store_histories()
+                self.mirror_time_list.append(t_now_sec)
+                self.mirror_r_rel_B_list.append(self.aperture_frame_dcm @ (r_d - r_c))
 
         # ── J2 forces (analytical) ─────────────────────────────────────────
         j2_app_vec = self.zero3.copy()
@@ -249,20 +253,24 @@ class CustomFlightSoftwareContext(sysModel.SysModel):
 
         # ── Translation control ────────────────────────────────────────────
         if is_engaged and cfg.detector_control_on:
-            force_n = controller.compute_force(
-                r_c, v_c, r_d, v_d, kp, kd,
-                j2_app_vec + srp_app_vec, self.focal_length
-            )
-            # Scalar dv uses ECI force magnitude (physics unchanged).
-            # Per-axis dv is projected into aperture frame so x/y/z always mean
-            # radial/along-track/focal regardless of RAAN, ω, Ω.
+            if (t_now_sec - self.last_ff_time) >= (cfg.ff_control_dt - 1e-9):
+                self.last_ff_time = t_now_sec
+                self.force_n_cmd = controller.compute_force(
+                    r_c, v_c, r_d, v_d, kp, kd,
+                    j2_app_vec + srp_app_vec, self.focal_length
+                )
+            
+            force_n = self.force_n_cmd
+            # Scalar dv and progress logging
             dv_s, _         = controller.dv_increment(force_n)
             force_ap        = self.aperture_frame_dcm @ force_n   # project to aperture frame
-            dv_xyz          = force_ap / cfg.det_mass * cfg.time_step_sec  # signed increment
-            self.cumul_dv     += dv_s
-            self.cumul_dv_xyz += np.abs(dv_xyz)   # cumulative ABSOLUTE per axis (monotonic budget)
+            dv_xyz          = force_ap / cfg.det_mass * cfg.time_step_sec  # use simulation step for accumulation scale
+            self.cumul_dv     += dv_s * (cfg.time_step_sec / cfg.ff_control_dt) # Rescale for sub-stepping
+            self.cumul_dv_xyz += np.abs(dv_xyz) 
         else:
             force_n = self.zero3.copy()
+            self.force_n_cmd = self.zero3.copy()
+            self.last_ff_time = -1.0 # Reset timers when leaving engaged
             controller.reset_integral()
 
 
@@ -432,6 +440,7 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     # Derive star_vector from the orbital plane normal (must come AFTER kwarg overwrites
     # so that any base_i_deg / base_raan_deg overrides are already applied).
     cfg.star_vector = orbital_plane_normal(cfg.base_i_deg, cfg.base_raan_deg)
+    
     print(f'>> Star vector (ĥ) = {[f"{v:.4f}" for v in cfg.star_vector]}'
           f'   (i={cfg.base_i_deg}°, Ω={cfg.base_raan_deg}°)')
 
@@ -530,6 +539,7 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     # mass calcs using properly mapped aperture diameter
     cfg.app_mass = ((cfg.app_diameter/2)**2)*np.pi*cfg.app_height*cfg.app_mass_density
     cfg.app_estimate_area = ((cfg.app_diameter/2)**2)*np.pi
+    cfg.time_step_sec = min(cfg.ff_control_dt, cfg.mirror_control_dt)
 
     print("=" * 80)
     print(">> Optical Reef — Formation Simulation")
@@ -556,6 +566,9 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     print(f"    Aperture estimate area:  {cfg.app_estimate_area} m²")
     print(f"    Detector mass:           {cfg.det_mass} kg")
     print(f"    Detector side:           {cfg.det_side} m")
+    print(f"    FF control:              {cfg.ff_control_dt} s")
+    print(f"    Mirror control:          {cfg.mirror_control_dt} s")
+    print(f"    Simulation time step:    {cfg.time_step_sec} s")
     print("=" * 80)
 
 
@@ -984,18 +997,16 @@ if __name__ == "__main__":
     
     # RUN SIMULATION
     cfg = SimConfig()
-
-    for base_i_deg in [0]:
-        for base_raan_deg in [45]:
-            for base_omega_deg in [0, 45, 90, 135, 180, 225, 270, 315]:
-                run(cfg,
-                    time_step_sec=0.5,
-                    read_every=100,
-                    base_omega_deg=base_omega_deg,
-                    base_raan_deg=base_raan_deg,
-                    base_i_deg=base_i_deg,
-                    show_plots=True)
-                plt.close('all')
+    run(cfg,
+        read_every          = 100,     # mirror plotting frame interval
+        ff_control_dt       = 1.0,
+        mirror_control_dt   = 1.0,
+        show_plots          = False,   # save all plots after each sim
+        save_data           = True,    # keep h5 and config saved
+        mirror_plotting     = False,   # run mirror animation (slow — keep False for sweeps)
+        disable_progress    = False,    # suppress tqdm in workers
+        )
+    plt.close('all')
 
 
     ##### table of useful constants

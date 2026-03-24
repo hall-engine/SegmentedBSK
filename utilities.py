@@ -28,7 +28,9 @@ def sim_tag(cfg) -> str:
 
     path_app_focal_sweep = f'app_{cfg.app_estimate_area:.2f}_focal_{cfg.target_focal_length}'
 
-    return path_app_focal_sweep
+    path_ffdt_mrdt = f'ffdt_{cfg.ff_control_dt}_mrdt_{cfg.mirror_control_dt}'
+
+    return path_ffdt_mrdt
 
 
 def create_sim_dir(cfg, results_base="./results"):

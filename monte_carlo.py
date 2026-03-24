@@ -33,16 +33,16 @@ matplotlib.use("Agg")   # no display in worker processes
 
 import itertools
 
-# ─── PARAMETER GRID ────────────────────────────────────────────────────────────
-# The grid calculates every unique combination of these variables.
-# Total Runs = len(RING_VALUES) * len(FOCAL_LENGTH_VALUES)
+# Fixed values for constant parameters
+RINGS_CONSTANT         = 1
+FOCAL_LENGTH_CONSTANT  = 5000.0
 
-RING_VALUES         = [1, 5, 10]
-FOCAL_LENGTH_VALUES = np.linspace(2000, 25000, 100)
+# Sweep over the simulation physics time-step
+MIRROR_CONTROL_DT_VALUES       = np.linspace(0.01, 0.1, 20)
+FF_CONTROL_DT_VALUES           = np.linspace(0.01, 0.1, 20)
 
 # These kwargs are passed to main.run() for EVERY simulation (fixed settings).
 FIXED_KWARGS = dict(
-    time_step_sec    = 0.5,     # sim timestep [s]
     read_every       = 100,     # mirror plotting frame interval
     show_plots       = False,   # save all plots after each sim
     save_data        = True,    # keep h5 and config saved
@@ -68,11 +68,11 @@ def _worker(kwargs: dict) -> str:
     from config import SimConfig
     import main as simulation
 
-    rings = kwargs.get("rings")
-    focal = kwargs.get("target_focal_length")
+    dt_ff = kwargs.get("ff_control_dt")
+    dt_mr = kwargs.get("mirror_control_dt")
     
     # Tag logic for printouts
-    tag  = f"rings={rings}_focal={focal:.0f}"
+    tag  = f"ff_dt={dt_ff:.3f}_mr_dt={dt_mr:.3f}"
     print(f"[START] {tag}", flush=True)
     try:
         cfg = SimConfig()
@@ -89,11 +89,12 @@ def _worker(kwargs: dict) -> str:
 def build_param_grid() -> list[dict]:
     """Return one kwarg dict per parameter set."""
     grid = []
-    # Generate every massive combinatorics tuple via python's itertools!
-    for rings, focal in itertools.product(RING_VALUES, FOCAL_LENGTH_VALUES):
+    for dt_ff, dt_mr in itertools.product(FF_CONTROL_DT_VALUES, MIRROR_CONTROL_DT_VALUES):
         kw = dict(FIXED_KWARGS)
-        kw["rings"] = int(rings)
-        kw["target_focal_length"] = float(focal)
+        kw["rings"] = int(RINGS_CONSTANT)
+        kw["target_focal_length"] = float(FOCAL_LENGTH_CONSTANT)
+        kw["ff_control_dt"] = float(dt_ff)
+        kw["mirror_control_dt"] = float(dt_mr)
         grid.append(kw)
     return grid
 
@@ -126,8 +127,8 @@ if __name__ == "__main__":
 
         print("=" * 60)
         print(f"  2D Parameter Sweep: {n_sims} sims, {n_workers} parallel workers")
-        print(f"  rings: {len(RING_VALUES)} steps")
-        print(f"  focal: {len(FOCAL_LENGTH_VALUES)} steps")
+        print(f"  ff_control_dt: {len(FF_CONTROL_DT_VALUES)} steps")
+        print(f"  mirror_control_dt: {len(MIRROR_CONTROL_DT_VALUES)} steps")
         print("=" * 60)
 
         with multiprocessing.Pool(processes=n_workers) as pool:

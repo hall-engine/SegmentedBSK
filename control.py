@@ -137,7 +137,7 @@ class MissionController:
         if np.linalg.norm(pos_err) < cfg.control_deadband_m:
             pos_err = np.zeros(3)
 
-        self._integral += pos_err * cfg.time_step_sec
+        self._integral += pos_err * cfg.ff_control_dt
         self._integral  = np.clip(self._integral,
                                    -cfg.integral_limit, cfg.integral_limit)
 
@@ -190,7 +190,7 @@ class MissionController:
         """
         accel_mag = np.linalg.norm(force_n) / self.cfg.det_mass
         accel_xyz = np.abs(force_n)          / self.cfg.det_mass
-        dt        = self.cfg.time_step_sec
+        dt        = self.cfg.ff_control_dt
         return accel_mag * dt, accel_xyz * dt
 
     # ─── Sun Tracker Utilities ────────────────────────────────────────────────
