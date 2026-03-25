@@ -175,8 +175,8 @@ class SimConfig:
     # Physical Simulation Limits (Systems Engineering Constraints)
     metrology_resolution_m: float = 0.00001 # [m] resolution - controller cannot see less than this
     thruster_mib_n: float = 0.001          # [N] minimum force increment
-    #control_deadband_m: float = 0.00005     # [m] idle zone for controller mechanism
-    control_deadband_m: float = 0.0
+    control_deadband_m: float = 0.00005     # [m] idle zone for controller mechanism
+    #control_deadband_m: float = 0.0
     
     # these two must be EITHER, not OR - Hys would choke PVM
     use_hysteresis: bool = False            # [bool] enable Schmitt trigger to prevent MIB chatter

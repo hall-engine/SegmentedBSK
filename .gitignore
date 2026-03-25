@@ -4,3 +4,4 @@ read_cell4.py
 read_ipynb.py
 check_aperture_wobble.py
 logs/
+bsk_env/
