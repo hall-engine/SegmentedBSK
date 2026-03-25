@@ -156,9 +156,9 @@ def gauge_where_pointing(hexdm, states, app_state, det_state, cfg, aperture_fram
         # angles
         desired_tip  = ( 0.5 * np.arctan2(dX, dZ) )
         desired_tilt = ( 0.5 * np.arctan2(dY, dZ) )
-        # Fixed-design piston: parabolic shape for the DESIGN focal length (cfg.focal_length)
+        # Dynamic piston: adapts parabolic shape based on instantaneous Z-distance
         cenx, ceny = states[s].position[0], states[s].position[1]
-        desired_piston = (cenx**2 + ceny**2) / (4.0 * cfg.focal_length)
+        desired_piston = (cenx**2 + ceny**2) / (4.0 * dZ)
         # put back in
         states[s].desired_mirror_actuation[:2] = desired_tip, desired_tilt
         states[s].desired_mirror_actuation[2]  = desired_piston

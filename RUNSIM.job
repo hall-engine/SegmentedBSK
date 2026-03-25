@@ -14,14 +14,14 @@
 #SBATCH --job-name=optical_reef_ring_focal
 #SBATCH --output=logs/mc_%j.out
 #SBATCH --error=logs/mc_%j.err
-#SBATCH --time=24:00:00
+#SBATCH --time=2:00:00
 
 # MODE B Configuration (Defaulting to small-ish resources per node)
 #SBATCH --partition=main
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=8G
+#SBATCH --mem=16G
 
 # ─── Environment setup ────────────────────────────────────────────────────────
 module purge

@@ -61,11 +61,11 @@ class SimConfig:
     # ==================================================================================================
     # CONTROL GAINS
     # ==================================================================================================
-    calibration_kp: float = 5.0
-    calibration_kd: float = 48.0
-    observation_kp: float = 5.0         # Same as cal — no gain drop at obs boundary
-    observation_kd: float = 48.0
-    ki_fraction: float = 0.2             # Integral gain = ki_fraction * kp
+    calibration_kp: float = 5.0          # Loose, fuel-efficient approach
+    calibration_kd: float = 48.0         # Lazy damping
+    observation_kp: float = 25.0         # Stiff, fierce lock-down for micron precision
+    observation_kd: float = 100.0        # Fast suppression of jitter
+    ki_fraction: float = 0.1             # Integral gain = ki_fraction * kp
     integral_limit: float = 500.0        # Anti-windup clamp per axis [N·s]
 
     # ==================================================================================================
@@ -175,8 +175,7 @@ class SimConfig:
     # Physical Simulation Limits (Systems Engineering Constraints)
     metrology_resolution_m: float = 0.00001 # [m] resolution - controller cannot see less than this
     thruster_mib_n: float = 0.001          # [N] minimum force increment
-    #control_deadband_m: float = 0.00005     # [m] idle zone for controller mechanism
-    control_deadband_m: float = 0.0
+    control_deadband_m: float = 0.00005     # [m] idle zone for controller mechanism
     
     # these two must be EITHER, not OR - Hys would choke PVM
     use_hysteresis: bool = False            # [bool] enable Schmitt trigger to prevent MIB chatter

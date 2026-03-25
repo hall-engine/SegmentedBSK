@@ -1002,13 +1002,14 @@ if __name__ == "__main__":
     # RUN SIMULATION
     cfg = SimConfig()
     run(cfg,
-        read_every          = 100,     # mirror plotting frame interval
-        ff_control_dt       = 1,
-        mirror_control_dt   = 1,
+        read_every          = 1000,     # mirror plotting frame interval
+        ff_control_dt       = 0.01,
+        mirror_control_dt   = 0.01,
+        start_eccentric_anomaly_deg = 55.0,
         r_geo               = 20_000_000.0,
-        show_plots          = False,   # save all plots after each sim
+        show_plots          = True,   # save all plots after each sim
         save_data           = True,    # keep h5 and config saved
-        mirror_plotting     = False,   # run mirror animation (slow — keep False for sweeps)
+        mirror_plotting     = True,   # run mirror animation (slow — keep False for sweeps)
         disable_progress    = False,    # suppress tqdm in workers
         )
     plt.close('all')
