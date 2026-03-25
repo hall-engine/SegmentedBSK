@@ -38,8 +38,8 @@ RINGS_CONSTANT         = 1
 FOCAL_LENGTH_CONSTANT  = 5000.0
 
 # Sweep over the simulation physics time-step
-MIRROR_CONTROL_DT_VALUES       = np.linspace(0.01, 0.1, 20)
-FF_CONTROL_DT_VALUES           = np.linspace(0.01, 0.1, 20)
+MIRROR_CONTROL_DT_VALUES       = [0.1]
+FF_CONTROL_DT_VALUES           = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1.0]
 
 # These kwargs are passed to main.run() for EVERY simulation (fixed settings).
 FIXED_KWARGS = dict(

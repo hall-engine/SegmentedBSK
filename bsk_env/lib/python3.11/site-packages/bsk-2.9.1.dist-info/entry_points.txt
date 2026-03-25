@@ -1,0 +1,3 @@
+[console_scripts]
+bskExamples = Basilisk.utilities.bskExamples:main
+bskLargeData = Basilisk.utilities.bskLargeData:main

@@ -50,7 +50,7 @@ class SimConfig:
     period_multiple: float = 0.15                                   # THIS ONE Fraction of orbital period to simulate
     ### -important
     cal_window_sec: float = 600.0                                   # Calibration phase duration [s]
-    obs_window_sec: float = 600.0                                   # Observation phase duration [s]
+    obs_window_sec: float = 300.0                                   # Observation phase duration [s]
     target_eccentric_anomaly_deg: float = 90.0                      # Eccentric anomaly for peak concentration [deg]
     ff_control_dt: float = 0.01                                     # Formation Flight (translation) control step [s]
     mirror_control_dt: float = 0.01                                 # Mirror segment (optics) control step [s]
@@ -175,8 +175,7 @@ class SimConfig:
     # Physical Simulation Limits (Systems Engineering Constraints)
     metrology_resolution_m: float = 0.00001 # [m] resolution - controller cannot see less than this
     thruster_mib_n: float = 0.001          # [N] minimum force increment
-    #control_deadband_m: float = 0.00005     # [m] idle zone for controller mechanism
-    control_deadband_m: float = 0.0
+    control_deadband_m: float = 0.00005     # [m] idle zone for controller mechanism
     
     # these two must be EITHER, not OR - Hys would choke PVM
     use_hysteresis: bool = False            # [bool] enable Schmitt trigger to prevent MIB chatter
