@@ -376,6 +376,7 @@ def calculate_optimal_detector_state(cfg: SimConfig, mu: float, oe_app_start: or
 
 
     # ── Print geometry summary ──────────────────────────────────────────────
+
     r_d0, v_d0 = orbitalMotion.elem2rv(mu, oe_det)
     r_a0, v_a0 = orbitalMotion.elem2rv(mu, oe_app_start)
     sep0 = np.linalg.norm(np.array(r_d0) - np.array(r_a0))
@@ -436,6 +437,9 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     np.random.seed(cfg.random_seed)
     _random.seed(cfg.random_seed)
     print(f"  [RNG] Seeded with random_seed = {cfg.random_seed}")
+
+    # create correct semi-major axis
+    cfg.a_geo = cfg.r_geo * (1 - cfg.e_geo)
 
     # Derive star_vector from the orbital plane normal (must come AFTER kwarg overwrites
     # so that any base_i_deg / base_raan_deg overrides are already applied).
@@ -999,12 +1003,13 @@ if __name__ == "__main__":
     cfg = SimConfig()
     run(cfg,
         read_every          = 100,     # mirror plotting frame interval
-        ff_control_dt       = 0.01,
-        mirror_control_dt   = 0.01,
+        ff_control_dt       = 1,
+        mirror_control_dt   = 1,
+        r_geo               = 20_000_000.0,
         show_plots          = False,   # save all plots after each sim
         save_data           = True,    # keep h5 and config saved
         mirror_plotting     = False,   # run mirror animation (slow — keep False for sweeps)
-        disable_progress    = True,    # suppress tqdm in workers
+        disable_progress    = False,    # suppress tqdm in workers
         )
     plt.close('all')
 

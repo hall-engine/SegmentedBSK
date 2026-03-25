@@ -227,7 +227,7 @@ class MissionController:
         print("=" * 80)
         print(f"    Orbital Period   : {self.period / 3600.0:.2f} hours")
         print(f"    Start Anomaly    : E={self.cfg.start_eccentric_anomaly_deg:.1f}°")
-        print(f"    Base Parameters  : i={self.cfg.base_i_deg:.1f}°, Ω={self.cfg.base_raan_deg:.1f}°, ω={self.cfg.base_omega_deg:.1f}°")
+        print(f"    Base Parameters  : a={self.cfg.a_geo:.1e} m, e={self.cfg.e_geo:.1f}, i={self.cfg.base_i_deg:.1f}°, Ω={self.cfg.base_raan_deg:.1f}°, ω={self.cfg.base_omega_deg:.1f}°")
         print(f"    Peak (E={self.cfg.target_eccentric_anomaly_deg:.1f}°)      : {self.t_peak / 60.0:.1f} min from periapsis")
         print(f"    Cal window       : {self.cfg.cal_window_sec:.0f} s "
               f"(starts {(self.t_peak - self.cfg.obs_window_sec/2 - self.cfg.cal_window_sec)/60:.1f} min)")

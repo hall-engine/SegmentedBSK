@@ -37,9 +37,11 @@ import itertools
 RINGS_CONSTANT         = 1
 FOCAL_LENGTH_CONSTANT  = 5000.0
 
-# Sweep over the simulation physics time-step
-MIRROR_CONTROL_DT_VALUES       = np.linspace(0.01, 0.1, 20)
-FF_CONTROL_DT_VALUES           = np.linspace(0.01, 0.1, 20)
+# Sweep over orbit parameters
+R_GEO_VALUES         = [40000000.0, 50000000.0, 60000000.0, 70000000.0]
+E_GEO_VALUES         = [0.4, 0.8]
+BASE_I_DEG_VALUES    = [0.0, 45.0, 90.0, 135.0, 180.0, 215.0]
+BASE_RAAN_DEG_VALUES = [0, 90, 180, 270]
 
 # These kwargs are passed to main.run() for EVERY simulation (fixed settings).
 FIXED_KWARGS = dict(
@@ -68,11 +70,13 @@ def _worker(kwargs: dict) -> str:
     from config import SimConfig
     import main as simulation
 
-    dt_ff = kwargs.get("ff_control_dt")
-    dt_mr = kwargs.get("mirror_control_dt")
+    r_geo = kwargs.get("r_geo")
+    e_geo = kwargs.get("e_geo")
+    i_deg = kwargs.get("base_i_deg")
+    raan_deg = kwargs.get("base_raan_deg")
     
     # Tag logic for printouts
-    tag  = f"ff_dt={dt_ff:.3f}_mr_dt={dt_mr:.3f}"
+    tag  = f"r={r_geo:.0f}_e={e_geo:.2f}_i={i_deg:.1f}_raan={raan_deg:.1f}"
     print(f"[START] {tag}", flush=True)
     try:
         cfg = SimConfig()
@@ -89,12 +93,14 @@ def _worker(kwargs: dict) -> str:
 def build_param_grid() -> list[dict]:
     """Return one kwarg dict per parameter set."""
     grid = []
-    for dt_ff, dt_mr in itertools.product(FF_CONTROL_DT_VALUES, MIRROR_CONTROL_DT_VALUES):
+    for r_geo, e_geo, base_i_deg, base_raan_deg in itertools.product(R_GEO_VALUES, E_GEO_VALUES, BASE_I_DEG_VALUES, BASE_RAAN_DEG_VALUES):
         kw = dict(FIXED_KWARGS)
         kw["rings"] = int(RINGS_CONSTANT)
         kw["target_focal_length"] = float(FOCAL_LENGTH_CONSTANT)
-        kw["ff_control_dt"] = float(dt_ff)
-        kw["mirror_control_dt"] = float(dt_mr)
+        kw["r_geo"] = float(r_geo)
+        kw["e_geo"] = float(e_geo)
+        kw["base_i_deg"] = float(base_i_deg)
+        kw["base_raan_deg"] = float(base_raan_deg)
         grid.append(kw)
     return grid
 
@@ -126,9 +132,11 @@ if __name__ == "__main__":
         n_workers = min(N_WORKERS, n_sims)
 
         print("=" * 60)
-        print(f"  2D Parameter Sweep: {n_sims} sims, {n_workers} parallel workers")
-        print(f"  ff_control_dt: {len(FF_CONTROL_DT_VALUES)} steps")
-        print(f"  mirror_control_dt: {len(MIRROR_CONTROL_DT_VALUES)} steps")
+        print(f"  4D Parameter Sweep: {n_sims} sims, {n_workers} parallel workers")
+        print(f"  r_geo: {len(R_GEO_VALUES)} steps")
+        print(f"  e_geo: {len(E_GEO_VALUES)} steps")
+        print(f"  base_i_deg: {len(BASE_I_DEG_VALUES)} steps")
+        print(f"  base_raan_deg: {len(BASE_RAAN_DEG_VALUES)} steps")
         print("=" * 60)
 
         with multiprocessing.Pool(processes=n_workers) as pool:

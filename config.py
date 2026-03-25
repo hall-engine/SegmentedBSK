@@ -17,7 +17,7 @@ class SimConfig:
     # ==================================================================================================
     # ORBITAL PARAMETERS
     # ==================================================================================================
-    a_geo: float = 45_000_000.0                         # Semi-major axis [m] (LEO for fast debugging)
+    r_geo: float = 35_000_000.0                         # Semi-major axis [m] 
     e_geo: float = 0.8                                  # Eccentricity
     base_i_deg: float = 0.0                             # Base inclination [deg]
     base_raan_deg: float = 0.0                          # RAAN [deg]
@@ -50,7 +50,7 @@ class SimConfig:
     period_multiple: float = 0.15                                   # THIS ONE Fraction of orbital period to simulate
     ### -important
     cal_window_sec: float = 600.0                                   # Calibration phase duration [s]
-    obs_window_sec: float = 600.0                                   # Observation phase duration [s]
+    obs_window_sec: float = 300.0                                   # Observation phase duration [s]
     target_eccentric_anomaly_deg: float = 90.0                      # Eccentric anomaly for peak concentration [deg]
     ff_control_dt: float = 0.01                                     # Formation Flight (translation) control step [s]
     mirror_control_dt: float = 0.01                                 # Mirror segment (optics) control step [s]
@@ -207,4 +207,4 @@ class SimConfig:
     # ==================================================================================================
     # OUTPUT DIRECTORY
     # ==================================================================================================
-    results_base: str = f"results/time_step_sweep/"
+    results_base: str = f"results/refined_orbital_sweep/"

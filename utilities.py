@@ -20,7 +20,7 @@ def sim_tag(cfg) -> str:
     e.g. 'sim_a45000000.0_e0.8_i-8_raan70_omega20'
     """
     pathOE = (f"sim_a{cfg.a_geo:.2e}_e{cfg.e_geo}"
-            f"_i{cfg.base_i_deg}_raan{cfg.base_raan_deg}_omega{cfg.base_omega_deg}")
+            f"_i{cfg.base_i_deg}_raan{cfg.base_raan_deg}")
 
     pathSeed = f"sim_seed{cfg.random_seed}"
 
@@ -30,7 +30,7 @@ def sim_tag(cfg) -> str:
 
     path_ffdt_mrdt = f'ffdt_{cfg.ff_control_dt}_mrdt_{cfg.mirror_control_dt}'
 
-    return path_ffdt_mrdt
+    return pathOE
 
 
 def create_sim_dir(cfg, results_base="./results"):
