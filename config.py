@@ -61,8 +61,8 @@ class SimConfig:
     # ==================================================================================================
     # CONTROL GAINS
     # ==================================================================================================
-    calibration_kp: float = 5.0          # Loose, fuel-efficient approach
-    calibration_kd: float = 48.0         # Lazy damping
+    calibration_kp: float = 25.0          # Loose, fuel-efficient approach
+    calibration_kd: float = 100.0         # Lazy damping
     observation_kp: float = 25.0         # Stiff, fierce lock-down for micron precision
     observation_kd: float = 100.0        # Fast suppression of jitter
     ki_fraction: float = 0.1             # Integral gain = ki_fraction * kp
@@ -206,4 +206,4 @@ class SimConfig:
     # ==================================================================================================
     # OUTPUT DIRECTORY
     # ==================================================================================================
-    results_base: str = f"results/refined_orbital_sweep/"
+    results_base: str = f"results/const_pid_refined_orbital_sweep/"
