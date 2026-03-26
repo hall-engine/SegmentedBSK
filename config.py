@@ -22,7 +22,7 @@ class SimConfig:
     base_i_deg: float = 0.0                             # Base inclination [deg]
     base_raan_deg: float = 0.0                          # RAAN [deg]
     base_omega_deg: float = 0.0                         # Argument of periapsis [deg]
-    start_eccentric_anomaly_deg: float = 0.0             # Starting E [deg] (for jump-starting sim)
+    start_eccentric_anomaly_deg: float = 40.0             # Starting E [deg] (for jump-starting sim)
     time_init_string: str = "2024 APRIL 10 00:00:00.0"   # SPICE epoch SN2024aggi
 
     # ==================================================================================================

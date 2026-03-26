@@ -48,7 +48,7 @@ FIXED_KWARGS = dict(
     read_every       = 100,     # mirror plotting frame interval
     show_plots       = False,   # save all plots after each sim
     save_data        = True,    # keep h5 and config saved
-    mirror_plotting  = False,   # run mirror animation (slow — keep False for sweeps)
+    mirror_plotting  = True,   # run mirror animation (slow — keep False for sweeps)
     disable_progress = True,    # suppress tqdm in workers
 )
 
