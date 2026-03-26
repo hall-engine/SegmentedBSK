@@ -4,3 +4,7 @@ read_cell4.py
 read_ipynb.py
 check_aperture_wobble.py
 logs/
+bask_env/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
