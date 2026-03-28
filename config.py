@@ -19,11 +19,12 @@ class SimConfig:
     # ==================================================================================================
     r_geo: float = 35_000_000.0                         # Semi-major axis [m] 
     e_geo: float = 0.8                                  # Eccentricity
-    base_i_deg: float = 0.0                             # Base inclination [deg]
-    base_raan_deg: float = 0.0                          # RAAN [deg]
-    base_omega_deg: float = 0.0                         # Argument of periapsis [deg]
-    start_eccentric_anomaly_deg: float = 40.0             # Starting E [deg] (for jump-starting sim)
-    time_init_string: str = "2024 APRIL 10 00:00:00.0"   # SPICE epoch SN2024aggi
+    base_i_deg: float = 60.0                            # Base inclination [deg]
+    base_raan_deg: float = 40.0                         # RAAN [deg]
+    base_omega_deg: float = 20.0                        # Argument of periapsis [deg]
+
+    start_eccentric_anomaly_deg: float = 40.0           # Starting E [deg] (for jump-starting sim)
+    time_init_string: str = "2024 APRIL 10 00:00:00.0"  # SPICE epoch SN2024aggi
 
     # ==================================================================================================
     # FORMATION DESIGN
@@ -32,8 +33,8 @@ class SimConfig:
 
     # Detector orbital element offsets relative to Aperture
     # (Both share a, e, RAAN, ω.  Only inclination and initial true anomaly differ.)
-    use_focal_designator: bool  = True    # If True, auto-compute det_delta_i_deg from target_focal_length
-    det_delta_i_deg: float      = 0.012  # [deg] inclination offset (overridden when use_focal_designator=True)
+    use_focal_designator: bool  = True     # If True, auto-compute det_delta_i_deg from target_focal_length
+    det_delta_i_deg: float      = 0.012    # [deg] inclination offset (overridden when use_focal_designator=True)
     det_lag_f_deg:   float      = 0.005    # [deg] true anomaly lag: f_det = f_app - det_lag_f_deg
 
     # The star_vector is computed automatically from orbital_plane_normal(i, RAAN)
@@ -61,8 +62,8 @@ class SimConfig:
     # ==================================================================================================
     # CONTROL GAINS
     # ==================================================================================================
-    calibration_kp: float = 25.0          # Loose, fuel-efficient approach
-    calibration_kd: float = 100.0         # Lazy damping
+    calibration_kp: float = 25.0         # Loose, fuel-efficient approach
+    calibration_kd: float = 100.0        # Lazy damping
     observation_kp: float = 25.0         # Stiff, fierce lock-down for micron precision
     observation_kd: float = 100.0        # Fast suppression of jitter
     ki_fraction: float = 0.1             # Integral gain = ki_fraction * kp
@@ -90,14 +91,14 @@ class SimConfig:
     # ==================================================================================================
     det_mass: float = 100.0
     det_shape: str = "hexagonal"
-    det_side: float = 1                      # [m]
-    det_height: float = 0.4                  # [m]
-    det_thrust: float = 20.0                 # [N]
-    det_num_pixels: int = 2048               # [pixels]
-    det_pixel_size: float = 2.5e-6           # [m]
-    det_size = det_num_pixels*det_pixel_size # detector total size
-    wideview: float = 0.5                    # [m]
-    read_every: int = 100                    # [steps]
+    det_side: float = 1                         # [m]
+    det_height: float = 0.4                     # [m]
+    det_thrust: float = 20.0                    # [N]
+    det_num_pixels: int = 2048                  # [pixels]
+    det_pixel_size: float = 2.5e-6              # [m]
+    det_size = det_num_pixels*det_pixel_size    # detector total size
+    wideview: float = 0.5                       # [m]
+    read_every: int = 100                       # [steps]
     
 
     # ==================================================================================================
