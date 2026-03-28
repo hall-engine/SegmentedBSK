@@ -99,6 +99,19 @@ class segmentLQR:
             print(f'dx = {dx}')
             print(f'new mirror state = {new_mirror_state}')
             print()
+
+        # ── Actuator quantization (Option A + C fine metrology) ────────────────
+        # Mirrors the thruster MIB logic in control.py: the actuator has a
+        # finite step size set by DAC resolution.  Commands smaller than the
+        # LSB are rounded to zero, preventing the LQR from chasing noise below
+        # the mechanical floor.
+        if getattr(self.cfg, 'enable_ao_metrology_noise', False):
+            res_piston  = getattr(self.cfg, 'mirror_actuator_resolution_piston_m',    1e-9)
+            res_tiptilt = getattr(self.cfg, 'mirror_actuator_resolution_tiptilt_rad', 1e-9)
+            new_mirror_state[0] = np.round(new_mirror_state[0] / res_tiptilt) * res_tiptilt  # tip
+            new_mirror_state[1] = np.round(new_mirror_state[1] / res_tiptilt) * res_tiptilt  # tilt
+            new_mirror_state[2] = np.round(new_mirror_state[2] / res_piston)  * res_piston   # piston
+
         # update state
         state.mirror_actuation = new_mirror_state
         # -------------------------------------------------------

@@ -1,13 +1,13 @@
 """
-monte_carlo.py — Semi-major axis sweep for the formation simulation
-===============================================================
-Runs the same configuration multiple times, each with a different
-semi-major axis (a_geo), to quantify variability across orbital altitudes.
+monte_carlo.py — Controller gain sweep for the formation simulation
+====================================================================
+Runs the same configuration multiple times, each with different
+PID controller gains, to quantify the ΔV / residual trade-off.
 
 Run with:
     python monte_carlo.py
 
-Edit A_GEO_VALUES below to control which semi-major axes are swept.
+Edit KP_VALUES, KD_VALUES, KI_FRACTION_VALUES below to control the sweep.
 Edit N_WORKERS to control parallelism.
 
 Notes
@@ -17,7 +17,7 @@ Notes
   Basilisk state, no thread-safety issues.
 - Workers call main.run(**kwargs) exactly as main.py's __main__ block does.
 - If a worker crashes it prints the traceback and the sweep continues.
-- Results go to the same results_base as a serial run (from SimConfig).
+- Results go to results/controller_sweep/<gain_tag>/ (one sub-folder per combo).
 - On HPC: set --cpus-per-task in your SLURM script; N_WORKERS auto-reads
   SLURM_CPUS_PER_TASK.  For multi-node HPC use RUNSIM.job array mode.
 """
@@ -33,22 +33,17 @@ matplotlib.use("Agg")   # no display in worker processes
 
 import itertools
 
-# Fixed values for constant parameters
-RINGS_CONSTANT         = 1
-FOCAL_LENGTH_CONSTANT  = 5000.0
-
-# Sweep over orbit parameters
-R_GEO_VALUES         = [40000000.0, 50000000.0, 60000000.0, 70000000.0]
-E_GEO_VALUES         = [0.4, 0.8]
-BASE_I_DEG_VALUES    = [0.0, 45.0, 90.0, 135.0, 180.0, 215.0]
-BASE_RAAN_DEG_VALUES = [0, 90, 180, 270]
+# Sweep over controller gains
+KP_VALUES          = [5.0, 25.0, 50.0, 100.0]
+KD_VALUES          = [50.0, 100.0, 200.0, 500.0]
+KI_FRACTION_VALUES = [0.0, 0.05, 0.1, 0.2]
 
 # These kwargs are passed to main.run() for EVERY simulation (fixed settings).
 FIXED_KWARGS = dict(
     read_every       = 100,     # mirror plotting frame interval
     show_plots       = False,   # save all plots after each sim
     save_data        = True,    # keep h5 and config saved
-    mirror_plotting  = True,   # run mirror animation (slow — keep False for sweeps)
+    mirror_plotting  = False,   # run mirror animation (slow — keep False for sweeps)
     disable_progress = True,    # suppress tqdm in workers
 )
 
@@ -70,13 +65,11 @@ def _worker(kwargs: dict) -> str:
     from config import SimConfig
     import main as simulation
 
-    r_geo = kwargs.get("r_geo")
-    e_geo = kwargs.get("e_geo")
-    i_deg = kwargs.get("base_i_deg")
-    raan_deg = kwargs.get("base_raan_deg")
-    
-    # Tag logic for printouts
-    tag  = f"r={r_geo:.0f}_e={e_geo:.2f}_i={i_deg:.1f}_raan={raan_deg:.1f}"
+    kp = kwargs.get("observation_kp")
+    kd = kwargs.get("observation_kd")
+    ki = kwargs.get("ki_fraction")
+
+    tag = f"kp={kp}_kd={kd}_ki={ki}"
     print(f"[START] {tag}", flush=True)
     try:
         cfg = SimConfig()
@@ -93,14 +86,13 @@ def _worker(kwargs: dict) -> str:
 def build_param_grid() -> list[dict]:
     """Return one kwarg dict per parameter set."""
     grid = []
-    for r_geo, e_geo, base_i_deg, base_raan_deg in itertools.product(R_GEO_VALUES, E_GEO_VALUES, BASE_I_DEG_VALUES, BASE_RAAN_DEG_VALUES):
+    for kp, kd, ki in itertools.product(KP_VALUES, KD_VALUES, KI_FRACTION_VALUES):
         kw = dict(FIXED_KWARGS)
-        kw["rings"] = int(RINGS_CONSTANT)
-        kw["target_focal_length"] = float(FOCAL_LENGTH_CONSTANT)
-        kw["r_geo"] = float(r_geo)
-        kw["e_geo"] = float(e_geo)
-        kw["base_i_deg"] = float(base_i_deg)
-        kw["base_raan_deg"] = float(base_raan_deg)
+        kw["observation_kp"] = float(kp)
+        kw["observation_kd"] = float(kd)
+        kw["calibration_kp"] = float(kp)
+        kw["calibration_kd"] = float(kd)
+        kw["ki_fraction"]    = float(ki)
         grid.append(kw)
     return grid
 
@@ -132,11 +124,10 @@ if __name__ == "__main__":
         n_workers = min(N_WORKERS, n_sims)
 
         print("=" * 60)
-        print(f"  4D Parameter Sweep: {n_sims} sims, {n_workers} parallel workers")
-        print(f"  r_geo: {len(R_GEO_VALUES)} steps")
-        print(f"  e_geo: {len(E_GEO_VALUES)} steps")
-        print(f"  base_i_deg: {len(BASE_I_DEG_VALUES)} steps")
-        print(f"  base_raan_deg: {len(BASE_RAAN_DEG_VALUES)} steps")
+        print(f"  Controller Gain Sweep: {n_sims} sims, {n_workers} parallel workers")
+        print(f"  kp: {KP_VALUES}")
+        print(f"  kd: {KD_VALUES}")
+        print(f"  ki_fraction: {KI_FRACTION_VALUES}")
         print("=" * 60)
 
         with multiprocessing.Pool(processes=n_workers) as pool:

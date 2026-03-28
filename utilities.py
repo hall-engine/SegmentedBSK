@@ -30,7 +30,9 @@ def sim_tag(cfg) -> str:
 
     path_ffdt_mrdt = f'ffdt_{cfg.ff_control_dt}_mrdt_{cfg.mirror_control_dt}'
 
-    return pathOE
+    pathPID = f'kp{cfg.calibration_kp:.1f}_kd{cfg.calibration_kd:.1f}_ki{cfg.ki_fraction:.2f}'
+
+    return pathPID
 
 
 def create_sim_dir(cfg, results_base="./results"):
@@ -75,7 +77,9 @@ def save_states_h5(states: dict, target_path: str, filename: str = "mirror_state
                    rel_pos_B_arr: np.ndarray = None,
                    sigma_app_star: np.ndarray = None,
                    sigma_det_star: np.ndarray = None,
-                   rel_sigma_B_arr: np.ndarray = None):
+                   rel_sigma_B_arr: np.ndarray = None,
+                   dv_arr: np.ndarray = None,
+                   dv_xyz_arr: np.ndarray = None):
     """
     Save simulation state histories to an HDF5 file.
 
@@ -83,6 +87,8 @@ def save_states_h5(states: dict, target_path: str, filename: str = "mirror_state
     -----------
     mirror_states.h5
     ├── time                          (T_full,)   full-sim timestamps [s]
+    ├── dv                            (T_full,)   cumulative scalar ΔV [m/s]
+    ├── dv_xyz                        (T_full, 3) cumulative |ΔV| per aperture-frame axis [m/s]
     ├── r_app_eci                     (T_full, 3) aperture position in ECI [m]
     ├── r_det_eci                     (T_full, 3) detector position in ECI [m]
     ├── sigma_app_star                (T_full, 3) aperture attitude MRP relative to Star Frame
@@ -113,6 +119,8 @@ def save_states_h5(states: dict, target_path: str, filename: str = "mirror_state
     sigma_app_star  : (T_full, 3) aperture attitude MRP relative to Star Frame
     sigma_det_star  : (T_full, 3) detector attitude MRP relative to Star Frame
     rel_sigma_B_arr : (T_full, 3) detector attitude MRP relative to aperture frame
+    dv_arr          : (T_full,) cumulative scalar ΔV [m/s]
+    dv_xyz_arr      : (T_full, 3) cumulative |ΔV| per aperture-frame axis [m/s]
     """
     import dataclasses
 
@@ -123,6 +131,14 @@ def save_states_h5(states: dict, target_path: str, filename: str = "mirror_state
         # ── Full-sim time ──────────────────────────────────────────────────────
         if time_arr is not None:
             f.create_dataset("time", data=np.array(time_arr, dtype=np.float64),
+                             compression="gzip")
+
+        # ── ΔV (full-sim cadence) ─────────────────────────────────────────────
+        if dv_arr is not None:
+            f.create_dataset("dv", data=np.array(dv_arr, dtype=np.float64),
+                             compression="gzip")
+        if dv_xyz_arr is not None:
+            f.create_dataset("dv_xyz", data=np.array(dv_xyz_arr, dtype=np.float64),
                              compression="gzip")
 
         # ── Aperture & Detector ECI positions (full sim cadence) ───────────────

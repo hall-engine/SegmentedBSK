@@ -172,6 +172,9 @@ class SimConfig:
     css_noise_std: float = 0.001    # 1σ Gaussian noise per sensor [cosine units ~0.057°]
     css_bias: float = 0.0002        # Constant bias per sensor [cosine units ~0.011°]
 
+    # ==================================================================================================
+    # COARSE METROLOGY — Formation Flight (inter-spacecraft, 10 µm resolution)
+    # ==================================================================================================
     # Physical Simulation Limits (Systems Engineering Constraints)
     metrology_resolution_m: float = 0.00001 # [m] resolution - controller cannot see less than this
     thruster_mib_n: float = 0.001          # [N] minimum force increment
@@ -184,6 +187,45 @@ class SimConfig:
     """ designed to keep average force precise to 1/1000th of an MIB
         witching as much as possible to keep average
         HANDLES GRAV DIFF AND SRP BETTER"""
+
+    # ==================================================================================================
+    # FINE METROLOGY — Adaptive Optics / Wavefront Sensor (intra-aperture, nanometre scale)
+    # ==================================================================================================
+    # This is a physically separate sensor chain from the coarse inter-spacecraft metrology above.
+    # A real space WFS (e.g. Shack-Hartmann or pyramid) measures optical path differences at the
+    # pupil plane — NOT spacecraft separation.  Error sources are photon noise, read noise, and
+    # aliasing from higher-order aberrations bleeding into piston/tip/tilt estimates.
+    #
+    # Reference values:
+    #   JWST NIRCam edge sensors   ~4 nm rms piston
+    #   LUVOIR/HabEx WFS target    ~10 nm rms piston
+    #   Space WFS tip/tilt         ~0.1–1 µrad per subaperture
+    #   16-bit piezo (5 µm stroke) ~0.08 nm LSB → ~1 nm effective floor
+
+    enable_ao_metrology_noise: bool = True
+    """Master switch for AO Wavefront Sensor noise + actuator quantization.
+    When False the mirror controller sees ideal geometry (current behaviour).
+    When True a physically-motivated noise floor is injected into the WFS
+    measurement and the actuator commands are quantized."""
+
+    # ── WFS sensing noise (injected into desired_mirror_actuation before LQR) ────
+    mirror_wfs_piston_noise_m: float = 10e-9
+    """1-σ Gaussian noise on piston measurement [m].  10 nm default (LUVOIR target).
+    The controller sees: desired_piston + N(0, this)."""
+
+    mirror_wfs_tiptilt_noise_rad: float = 0.1e-6
+    """1-σ Gaussian noise on tip AND tilt measurements [rad].  0.1 µrad default.
+    Represents photon-noise + read-noise floor of one WFS subaperture frame."""
+
+    # ── Actuator quantization (applied to LQR command output) ────────────────────
+    mirror_actuator_resolution_piston_m: float = 1e-9
+    """Minimum piston increment of the segment actuator [m].
+    Equivalent to the thruster MIB for the optics loop.
+    1 nm corresponds to a 16-bit DAC driving a ~65 µm-stroke piezo."""
+
+    mirror_actuator_resolution_tiptilt_rad: float = 1e-9
+    """Minimum tip/tilt increment of the segment actuator [rad].
+    1 nrad corresponds to a 16-bit voice-coil or fine-pitch piezo."""
 
     # ==================================================================================================
     # SRP REFLECTIVITY (used even when enable_srp=True via native module)
@@ -206,4 +248,4 @@ class SimConfig:
     # ==================================================================================================
     # OUTPUT DIRECTORY
     # ==================================================================================================
-    results_base: str = f"results/const_pid_refined_orbital_sweep/"
+    results_base: str = f"results/controller_sweep/"

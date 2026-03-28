@@ -966,7 +966,9 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
                                rel_pos_B_arr=_rel_pos_B,
                                sigma_app_star=_sigma_app_star,
                                sigma_det_star=_sigma_det_star,
-                               rel_sigma_B_arr=_rel_sigma_B)
+                               rel_sigma_B_arr=_rel_sigma_B,
+                               dv_arr=np.array(_trim(fsw.dv_list)),
+                               dv_xyz_arr=np.array(_trim(fsw.dv_xyz_list)))
 
 
         if show_plots:

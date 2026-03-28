@@ -110,7 +110,7 @@ def actuate_mirrors(hexdm, states, cfg):
 
 def gauge_where_pointing(hexdm, states, app_state, det_state, cfg, aperture_frame_dcm=None):
     """
-    Determines where each mirror points.
+    Determines where each mirror points and computes desired actuation.
     <-z-- det ----- f ---------- |segment.
     ^ y pos and > x pos
 
@@ -120,6 +120,22 @@ def gauge_where_pointing(hexdm, states, app_state, det_state, cfg, aperture_fram
     whenever the formation is correct, regardless of attitude transients.
 
     If aperture_frame_dcm is None (backwards-compat), falls back to body frame.
+
+    AO / WFS noise model (Option A + C fine metrology)
+    ---------------------------------------------------
+    When cfg.enable_ao_metrology_noise is True, Gaussian noise representative of
+    a photon/read-noise-limited space Wavefront Sensor is injected into the
+    desired_mirror_actuation BEFORE it is handed to the LQR controller:
+
+        desired_piston += N(0, cfg.mirror_wfs_piston_noise_m)
+        desired_tip    += N(0, cfg.mirror_wfs_tiptilt_noise_rad)
+        desired_tilt   += N(0, cfg.mirror_wfs_tiptilt_noise_rad)
+
+    This is a completely separate noise source from the coarse inter-spacecraft
+    metrology (metrology_resolution_m).  The WFS measures optical path differences
+    at the pupil plane — not spacecraft separation.  Default values correspond to a
+    LUVOIR-class space telescope (10 nm piston, 0.1 µrad tip/tilt).
+    Actuator quantization is applied inside lqr_control_full() in mirror_controller.py.
     """
     debug = False
     debugseg = 1
@@ -172,5 +188,17 @@ def gauge_where_pointing(hexdm, states, app_state, det_state, cfg, aperture_fram
             print(f'detx {det_x} dety {det_y}')
             print(f'desired tip {desired_tip} desired tilt {desired_tilt}')
             print(30*'-')
-    
+
+    # ── WFS / AO fine metrology noise injection ────────────────────────────────
+    # Applied AFTER the geometry loop so it is independent per segment per frame.
+    # This represents a single WFS readout (photon noise + read noise), drawn fresh
+    # every mirror_control_dt — consistent with a photon-noise-limited sensor model.
+    if getattr(cfg, 'enable_ao_metrology_noise', False):
+        sigma_piston   = getattr(cfg, 'mirror_wfs_piston_noise_m',    10e-9)
+        sigma_tiptilt  = getattr(cfg, 'mirror_wfs_tiptilt_noise_rad', 0.1e-6)
+        for s in states:
+            states[s].desired_mirror_actuation[0] += np.random.normal(0.0, sigma_tiptilt)  # tip
+            states[s].desired_mirror_actuation[1] += np.random.normal(0.0, sigma_tiptilt)  # tilt
+            states[s].desired_mirror_actuation[2] += np.random.normal(0.0, sigma_piston)   # piston
+
     return states
