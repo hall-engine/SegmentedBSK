@@ -17,13 +17,13 @@ class SimConfig:
     # ==================================================================================================
     # ORBITAL PARAMETERS
     # ==================================================================================================
-    r_geo: float = 35_000_000.0                         # Semi-major axis [m] 
-    e_geo: float = 0.8                                  # Eccentricity
-    base_i_deg: float = 60.0                            # Base inclination [deg]
-    base_raan_deg: float = 40.0                         # RAAN [deg]
-    base_omega_deg: float = 20.0                        # Argument of periapsis [deg]
+    perigee_radius: float = 20_000_000.0               # Perigee radius r_p [m]  (a = r_p / (1 - e))
+    eccentricity: float = 0.7                          # Eccentricity
+    base_i_deg: float = 0.0                            # Base inclination [deg]
+    base_raan_deg: float = 0.0                         # RAAN [deg]
+    base_omega_deg: float = 0.0                        # Argument of periapsis [deg]
 
-    start_eccentric_anomaly_deg: float = 40.0           # Starting E [deg] (for jump-starting sim)
+    start_eccentric_anomaly_deg: float = 0.0           # Starting E [deg] (for jump-starting sim)
     time_init_string: str = "2024 APRIL 10 00:00:00.0"  # SPICE epoch SN2024aggi
 
     # ==================================================================================================
@@ -35,7 +35,8 @@ class SimConfig:
     # (Both share a, e, RAAN, ω.  Only inclination and initial true anomaly differ.)
     use_focal_designator: bool  = True     # If True, auto-compute det_delta_i_deg from target_focal_length
     det_delta_i_deg: float      = 0.012    # [deg] inclination offset (overridden when use_focal_designator=True)
-    det_lag_f_deg:   float      = 0.005    # [deg] true anomaly lag: f_det = f_app - det_lag_f_deg
+    det_lag_f_deg:   float      = 0.0001   # [deg] true anomaly lag: f_det = f_app - det_lag_f_deg
+    # 0.0001° ≈ 35 m along-track at perigee — "almost connected" initial condition
 
     # The star_vector is computed automatically from orbital_plane_normal(i, RAAN)
     # in run() — it is the aperture orbit normal, which the aperture body +Z tracks.
@@ -62,19 +63,25 @@ class SimConfig:
     # ==================================================================================================
     # CONTROL GAINS
     # ==================================================================================================
-    calibration_kp: float = 25.0         # Loose, fuel-efficient approach
-    calibration_kd: float = 100.0        # Lazy damping
+    calibration_kp: float = 1.0         # Loose, fuel-efficient approach
+    calibration_kd: float = 20.0        # Lazy damping
     observation_kp: float = 25.0         # Stiff, fierce lock-down for micron precision
     observation_kd: float = 100.0        # Fast suppression of jitter
     ki_fraction: float = 0.1             # Integral gain = ki_fraction * kp
-    integral_limit: float = 500.0        # Anti-windup clamp per axis [N·s]
+    integral_limit: float = 20.0        # Anti-windup clamp per axis [N·s]
+
+    obs_gain_switch_fraction: float = 0.9
+    """Fraction through the calibration window at which the controller switches
+    from calibration gains to observation gains, giving the formation time to
+    tighten up before the fine observation phase begins.
+    0.9 = switch at 90% through calibration (last 10% uses observation gains).
+    1.0 = switch only at Fine Observation start (original behaviour)."""
+
 
     # ==================================================================================================
     # SPACECRAFT PROPERTIES — APERTURE (Chief)
     # ==================================================================================================
     app_shape: str = "hexagonal"
-    mirror_ftf: float = 5               # [m]
-    segment_gap: float = 1.0            # [cm]
     app_side: float = 5.0               # [m]
     app_height: float = 1.0             # [m]
     app_thrust: float = 0.0             # [N] (unused — aperture has no thrusters)
@@ -111,7 +118,7 @@ class SimConfig:
     # ==================================================================================================
     mirror_control_on: bool = True    # Master switch for mirror control
     mirror_mass: float = 1.0          # [kg]
-    mirror_I = np.diag([5/72, 5/72, 5/36]) * mirror_mass * mirror_ftf**2
+    mirror_I = np.diag([5/72, 5/72, 5/36]) * mirror_mass * flat_to_flat**2
     mirror_Q = np.diag([1, 1, 1, 0.1, 0.1, 0.1])    # LQR state cost matrix
     mirror_R = np.diag([1, 1, 1])                   # LQR control cost matrix
     mirror_J_theta: float = 1.25                    # mirror THETA stiffness

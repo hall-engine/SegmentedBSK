@@ -183,16 +183,33 @@ def _set_white_colorbar(cbar):
 # INDIVIDUAL PLOT FUNCTIONS
 # =============================================================================
 
-def plot_relative_motion(log1, log2, time, out_dir="./results", suffix=""):
-    """Relative motion in the fixed orbital-plane frame (4 figures)."""
-    rel, vel, t = _plane_fixed_frame(log1, log2, time)
+def plot_relative_motion(log1, log2, time, out_dir="./results", suffix="", frame_dcm=None):
+    """
+    Relative motion in the frozen aperture frame (4 figures).
+
+    Parameters
+    ----------
+    frame_dcm : (3,3) ndarray or None
+        Aperture frame DCM (rows = x,y,z basis vectors in ECI).  When supplied
+        the plots use the same perifocal frame as all other simulation outputs.
+        Falls back to _plane_fixed_frame (arbitrary x orientation) when None.
+    """
+    if frame_dcm is not None:
+        dcm   = np.asarray(frame_dcm)
+        r1_all, v1_all = log1.r_BN_N, log1.v_BN_N
+        r2_all, v2_all = log2.r_BN_N, log2.v_BN_N
+        rel = (r2_all - r1_all) @ dcm.T   # project ECI relative pos into aperture frame
+        vel = (v2_all - v1_all) @ dcm.T
+        t   = time
+    else:
+        rel, vel, t = _plane_fixed_frame(log1, log2, time)
     x, y, z = rel[:, 0] / 1e3, rel[:, 1] / 1e3, rel[:, 2] / 1e3
 
     fig = plt.figure(figsize=(10, 6))
     ax  = fig.add_subplot(projection="3d")
     ax.plot(x, y, z, label="Relative Trajectory")
-    ax.set_xlabel("x [km]"); ax.set_ylabel("y [km]"); ax.set_zlabel("z [km]")
-    ax.set_title("3D Relative Motion (Plane-Fixed)")
+    ax.set_xlabel("x [km]  (perigee dir.)"); ax.set_ylabel("y [km]  (v_perigee dir.)"); ax.set_zlabel("z [km]  (orbit normal)")
+    ax.set_title("3D Relative Motion (Aperture Frame — frozen perifocal)")
     mr = np.array([x.max()-x.min(), y.max()-y.min(), z.max()-z.min()]).max() / 2
     mx, my, mz = (x.max()+x.min())/2, (y.max()+y.min())/2, (z.max()+z.min())/2
     ax.set_xlim(mx-mr, mx+mr); ax.set_ylim(my-mr, my+mr); ax.set_zlim(mz-mr, mz+mr)
@@ -202,10 +219,10 @@ def plot_relative_motion(log1, log2, time, out_dir="./results", suffix=""):
     plt.savefig(os.path.join(out_dir, f"relative_position_3d{suffix}.png"))
 
     plt.figure(figsize=(10, 6))
-    plt.plot(t/3600, x, label="x"); plt.plot(t/3600, y, label="y")
-    plt.plot(t/3600, z, label="z")
+    plt.plot(t/3600, x, label="x (perigee dir.)"); plt.plot(t/3600, y, label="y (v-perigee dir.)")
+    plt.plot(t/3600, z, label="z (orbit normal)")
     plt.xlabel("Time [hours]"); plt.ylabel("Rel. Position [km]")
-    plt.legend(); plt.grid(); plt.title("Plane-Fixed Relative Position")
+    plt.legend(); plt.grid(); plt.title("Relative Position (Aperture Frame — frozen perifocal)")
     set_dark_transparent(); plt.savefig(os.path.join(out_dir, f"relative_position{suffix}.png"))
 
     # Plot 3: In-Plane (Heat Map)
@@ -217,19 +234,19 @@ def plot_relative_motion(log1, log2, time, out_dir="./results", suffix=""):
     lc.set_linewidth(2)
     line = ax.add_collection(lc)
     ax.autoscale()
-    ax.set_xlabel("x [km]"); ax.set_ylabel("y [km]")
-    ax.set_title("In-Plane Relative Motion (Colored by Time)")
+    ax.set_xlabel("x [km]  (perigee dir.)"); ax.set_ylabel("y [km]  (v-perigee dir.)")
+    ax.set_title("In-Plane Relative Motion — x/y (Colored by Time)")
     ax.axis("equal"); ax.grid()
     cbar = fig.colorbar(line, ax=ax)
     cbar.set_label("Time [hours]")
     set_dark_transparent(ax); plt.savefig(os.path.join(out_dir, f"relative_inplane{suffix}.png"))
 
     plt.figure(figsize=(10, 6))
-    plt.plot(t/3600, vel[:, 0], label="vx")
-    plt.plot(t/3600, vel[:, 1], label="vy")
-    plt.plot(t/3600, vel[:, 2], label="vz")
+    plt.plot(t/3600, vel[:, 0], label="vx (perigee dir.)")
+    plt.plot(t/3600, vel[:, 1], label="vy (v-perigee dir.)")
+    plt.plot(t/3600, vel[:, 2], label="vz (orbit normal)")
     plt.xlabel("Time [hours]"); plt.ylabel("Rel. Velocity [m/s]")
-    plt.legend(); plt.grid(); plt.title("Relative Velocity (Plane-Fixed)")
+    plt.legend(); plt.grid(); plt.title("Relative Velocity (Aperture Frame — frozen perifocal)")
     set_dark_transparent(); plt.savefig(os.path.join(out_dir, f"relative_velocity{suffix}.png"))
 
 
@@ -412,7 +429,7 @@ def plot_formation_error(pos_err_vec, time, star_vector, out_dir="./results", su
     ax[1].grid()
 
     # Phase-shaded background regions
-    phase_colors = {"Calibration": "orange", "Fine Observation": "red"}
+    phase_colors = {"Calibration": "orange", "Pre-Observation": "yellow", "Fine Observation": "red"}
     if phase is not None:
         ph = np.asarray(phase)
         for a in ax:
@@ -717,8 +734,8 @@ def plot_orbital_geometry(cfg, out_dir="./results", suffix=""):
       - Inclination arc (i) at ascending node
       - Argument of periapsis arc (ω) in orbit plane
     """
-    a  = cfg.a_geo / 1e3          # km
-    e  = cfg.e_geo
+    a  = cfg.a / 1e3          # km
+    e  = cfg.eccentricity
     i  = np.radians(cfg.base_i_deg)
     Ω  = np.radians(cfg.base_raan_deg)
     ω  = np.radians(cfg.base_omega_deg)
@@ -863,8 +880,9 @@ def run_all(log1, log2, time, extra_data: dict = None, out_dir="./results"):
     if extra_data and "cfg" in extra_data:
         suffix = "_" + sim_tag(extra_data["cfg"])
 
-    # Always: plane-fixed relative motion
-    plot_relative_motion(log1, log2, time, out_dir=out_dir, suffix=suffix)
+    # Always: relative motion in the frozen aperture frame
+    plot_relative_motion(log1, log2, time, out_dir=out_dir, suffix=suffix,
+                         frame_dcm=extra_data.get("aperture_frame_dcm") if extra_data else None)
 
     if not extra_data:
         print(f"Plots saved to .../{os.path.relpath(out_dir)}")

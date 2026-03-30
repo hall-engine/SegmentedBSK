@@ -291,15 +291,19 @@ class CustomFlightSoftwareContext(sysModel.SysModel):
         # r_rel in APERTURE FRAME: fixed ECI frame (z=star_vec, y=v_perigee, x=y×z).
         # We use the pre-computed frozen DCM rather than the instantaneous body frame
         # so that the coordinates are independent of RAAN/ω/Ω and attitude residuals.
-        self.r_rel_B_list.append(self.aperture_frame_dcm @ (r_d - r_c))
+        r_rel_B = self.aperture_frame_dcm @ (r_d - r_c)
+        self.r_rel_B_list.append(r_rel_B)
 
         self.engaged_list.append(is_engaged)
         self.phase_list.append(mode)
         self.dv_list.append(self.cumul_dv)
         self.dv_xyz_list.append(self.cumul_dv_xyz.copy())
-        _tgt = controller.target_position(r_c, self.focal_length)
+        # Formation error in aperture frame:
+        #   x,y = lateral deviations (should be ~0 for nominal formation)
+        #   z   = focal-length error  (actual z-separation  minus  target)
+        # This is pure geometric error independent of the aperture's orbital position.
         self.pos_err_list.append(
-            self.aperture_frame_dcm @ (r_d - _tgt)   # aperture-frame: negative = below target
+            r_rel_B - np.array([0., 0., self.focal_length])
         )
 
         self.css_sun_app_list.append(self._read_wls(self.app_mgr))
@@ -438,8 +442,8 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     _random.seed(cfg.random_seed)
     print(f"  [RNG] Seeded with random_seed = {cfg.random_seed}")
 
-    # create correct semi-major axis
-    cfg.a_geo = cfg.r_geo * (1 - cfg.e_geo)
+    # Derive semi-major axis from perigee radius: a = r_p / (1 - e)
+    cfg.a = cfg.perigee_radius / (1 - cfg.eccentricity)
 
     # Derive star_vector from the orbital plane normal (must come AFTER kwarg overwrites
     # so that any base_i_deg / base_raan_deg overrides are already applied).
@@ -466,7 +470,7 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     # where u_peak = ω + f(E_peak).  This is purely from the inclination offset;
     # the 1° along-track lag (det_lag_f_deg) contributes only in-plane separation.
     if cfg.use_focal_designator:
-        _e  = cfg.e_geo
+        _e  = cfg.eccentricity
         _i  = np.radians(cfg.base_i_deg)
         _O  = np.radians(cfg.base_raan_deg)
         _w  = np.radians(cfg.base_omega_deg)
@@ -476,7 +480,7 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
 
         # E_peak and f_peak — purely ellipse-defined, independent of ω
         _E_pk = np.radians(cfg.target_eccentric_anomaly_deg)
-        _r_pk = cfg.a_geo * (1.0 - _e * np.cos(_E_pk))
+        _r_pk = cfg.a * (1.0 - _e * np.cos(_E_pk))
         _f_pk = 2.0 * np.arctan(np.sqrt((1+_e)/(1-_e)) * np.tan(_E_pk/2))
 
         # ── Perigee-axis tilt ────────────────────────────────────────────────
@@ -558,7 +562,7 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     print(f"                             {cfg.time_init_string}")
     print("=" * 80)
     print(">> Segmented Mirror Properties")
-    print(f"    Segment gap:             {cfg.segment_gap} cm")
+    print(f"    Segment gap:             {cfg.gap} cm")
     print(f"    Segment flat-to-flat:    {cfg.flat_to_flat} m")
     print(f"    Number of rings:         {cfg.rings}")
     print(f"    Number of segments:      {len(states)}")
@@ -678,8 +682,8 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     # 8. Initial Orbital Conditions
     # =========================================================================
     oe_app        = orbitalMotion.ClassicElements()
-    oe_app.a      = cfg.a_geo
-    oe_app.e      = cfg.e_geo
+    oe_app.a      = cfg.a
+    oe_app.e      = cfg.eccentricity
     oe_app.i      = np.radians(cfg.base_i_deg)
     oe_app.Omega  = np.radians(cfg.base_raan_deg)
     oe_app.omega  = np.radians(cfg.base_omega_deg)
@@ -687,7 +691,7 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
 
     # Convert starting Eccentric Anomaly to True Anomaly
     E0            = np.radians(cfg.start_eccentric_anomaly_deg)
-    f0            = 2.0 * np.arctan(np.sqrt((1.0 + cfg.e_geo) / (1.0 - cfg.e_geo)) * np.tan(E0 / 2.0))
+    f0            = 2.0 * np.arctan(np.sqrt((1.0 + cfg.eccentricity) / (1.0 - cfg.eccentricity)) * np.tan(E0 / 2.0))
     oe_app.f      = f0
     r1, v1        = orbitalMotion.elem2rv(mu, oe_app)
 
@@ -704,7 +708,7 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     _sv_formula /= np.linalg.norm(_sv_formula)
     _angle_diff_deg = float(np.degrees(np.arccos(np.clip(np.dot(_h_hat, _sv_formula), -1, 1))))
     cfg.star_vector = _h_hat.tolist()
-    print(f">> star_vector (r1×v1): {_h_hat.round(4)}  [formula diff={_angle_diff_deg:.4f}°]")
+    print(f">> star_vector (r1×v1 at t=0): {_h_hat.round(4)}  [formula diff={_angle_diff_deg:.4f}°]")
 
 
     oe_det = calculate_optimal_detector_state(cfg, mu, oe_app)
@@ -753,22 +757,37 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     print(f">> Aperture σ_BN = {[f'{x:.6f}' for x in sigma_app]}")
     print(f">> Detector σ_BN = {[f'{x:.6f}' for x in sigma_det]}")
 
-    # ── Aperture Frame: fixed ECI frame defined at t=0 ─────────────────────
-    # z = star_vector (orbit normal, fixed in ECI)
-    # y = aperture velocity direction at perigee (t=0)
-    # x = y × z  (radially outward at perigee — perifocal frame)
-    # This frame is INVARIANT to RAAN/ω/Ω: same a/e/i always give the same
-    # separation coordinates regardless of other elements.
+    # ── Aperture Frame: fixed ECI frame defined at PERIGEE ──────────────────
+    # Always computed from the perigee velocity (f=0), independently of
+    # start_eccentric_anomaly_deg, so the frame is INVARIANT to where in the
+    # orbit the sim begins.
+    #
+    # z = ĥ  (orbit normal = star_vector, fixed in ECI)
+    # y = v̂_perigee  (velocity direction at perigee — fastest point, in-plane)
+    # x = ŷ × ẑ  = perigee direction (radially outward at perigee)
+    #
+    # This is the perifocal frame frozen in ECI.  Any r_rel expressed in this
+    # frame has z ≈ +focal_length and x,y ≈ 0 when the formation is nominal.
+    _oe_peri        = orbitalMotion.ClassicElements()
+    _oe_peri.a      = oe_app.a
+    _oe_peri.e      = oe_app.e
+    _oe_peri.i      = oe_app.i
+    _oe_peri.Omega  = oe_app.Omega
+    _oe_peri.omega  = oe_app.omega
+    _oe_peri.f      = 0.0            # perigee
+    _, v_perigee    = orbitalMotion.elem2rv(mu, _oe_peri)
+
     z_hat = np.array(cfg.star_vector, dtype=float); z_hat /= np.linalg.norm(z_hat)
-    y_hat = np.array(v1, dtype=float);               y_hat /= np.linalg.norm(y_hat)
+    y_hat = np.array(v_perigee, dtype=float);       y_hat /= np.linalg.norm(y_hat)
     x_hat = np.cross(y_hat, z_hat);                 x_hat /= np.linalg.norm(x_hat)
-    # Re-orthogonalise y in case v1 had a small z component
+    # Re-orthogonalise y (v_perigee may have tiny out-of-plane component due to floating point)
     y_hat = np.cross(z_hat, x_hat);                 y_hat /= np.linalg.norm(y_hat)
     aperture_frame_dcm = np.vstack((x_hat, y_hat, z_hat))   # (3×3), rows are basis vectors
-    print(f">> Aperture frame (ECI, frozen at t=0):")
-    print(f"     x = {x_hat.round(4)}  (radial at perigee)")
-    print(f"     y = {y_hat.round(4)}  (velocity at perigee)")
+    print(f">> Aperture frame (ECI, frozen — perifocal at perigee):")
+    print(f"     x = {x_hat.round(4)}  (perigee direction, radially outward)")
+    print(f"     y = {y_hat.round(4)}  (perigee velocity direction, along-track at perigee)")
     print(f"     z = {z_hat.round(4)}  (orbit normal / star_vector)")
+
 
 
     # =========================================================================
@@ -818,9 +837,7 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
         # reading it would segfault.  Use zeros as a safe t=0 placeholder.
         return _zero3.copy()
 
-    sun0        = _seed_sun_pos()
-    initial_r_target = controller.target_position(r1, focal_length)
-
+    sun0             = _seed_sun_pos()
     seed_r1          = np.array(app_sc.scStateOutMsg.read().r_CN_N)
     seed_r2          = np.array(det_sc.scStateOutMsg.read().r_CN_N)
     _app_state_seed  = app_sc.scStateOutMsg.read()
@@ -869,7 +886,7 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     custom_fsw.phase_list.append("Drifting")
     custom_fsw.dv_list.append(0.0)
     custom_fsw.dv_xyz_list.append(_zero3.copy())
-    custom_fsw.pos_err_list.append(aperture_frame_dcm @ (seed_r2 - initial_r_target))
+    custom_fsw.pos_err_list.append(seed_r_rel_B - np.array([0., 0., focal_length]))
     custom_fsw.css_sun_app_list.append(_seed_wls())
     custom_fsw.css_sun_det_list.append(_seed_wls())
     custom_fsw.true_sun_app_list.append(seed_sun_app)
@@ -1005,10 +1022,8 @@ if __name__ == "__main__":
     cfg = SimConfig()
     run(cfg,
         read_every          = 1000,     # mirror plotting frame interval
-        ff_control_dt       = 0.01,
-        mirror_control_dt   = 0.01,
-        start_eccentric_anomaly_deg = 55.0,
-        r_geo               = 20_000_000.0,
+        ff_control_dt       = 0.1,
+        mirror_control_dt   = 0.1,
         show_plots          = True,   # save all plots after each sim
         save_data           = True,    # keep h5 and config saved
         mirror_plotting     = True,   # run mirror animation (slow — keep False for sweeps)

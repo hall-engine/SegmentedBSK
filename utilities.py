@@ -19,12 +19,12 @@ def sim_tag(cfg) -> str:
     Used as both the results sub-folder name and the plot filename suffix.
     e.g. 'sim_a45000000.0_e0.8_i-8_raan70_omega20'
     """
-    pathOE = (f"sim_a{cfg.a_geo:.2e}_e{cfg.e_geo}"
+    pathOE = (f"sim_a{cfg.a:.2e}_e{cfg.eccentricity}"
             f"_i{cfg.base_i_deg}_raan{cfg.base_raan_deg}")
 
     pathSeed = f"sim_seed{cfg.random_seed}"
 
-    pathA_I_Omega = f"sim_a{cfg.a_geo:.2e}_i{cfg.base_i_deg}_omega{cfg.base_omega_deg}"
+    pathA_I_Omega = f"sim_a{cfg.a:.2e}_i{cfg.base_i_deg}_omega{cfg.base_omega_deg}"
 
     path_app_focal_sweep = f'app_{cfg.app_estimate_area:.2f}_focal_{cfg.target_focal_length}'
 

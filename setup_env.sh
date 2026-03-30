@@ -15,6 +15,33 @@
 # =============================================================================
 set -euo pipefail   # exit on error, undefined var, pipe failure
 
+# ─── 0. Bash version guard ────────────────────────────────────────────────────
+# macOS ships with bash 3.2 (GPLv2 constraint). This script requires bash ≥ 4.0
+# for associative arrays and other features. If running on macOS:
+#   brew install bash
+# then invoke as:
+#   /opt/homebrew/bin/bash setup_env.sh   (Apple Silicon)
+#   /usr/local/bin/bash setup_env.sh      (Intel Mac)
+BASH_MAJOR="${BASH_VERSINFO[0]}"
+if [ "$BASH_MAJOR" -lt 4 ]; then
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════╗"
+    echo "║  ERROR: Bash ${BASH_VERSION} detected — bash ≥ 4.0 is required.       ║"
+    echo "║                                                              ║"
+    echo "║  macOS ships with bash 3.2 (GPL-2 licensing restriction).    ║"
+    echo "║                                                              ║"
+    echo "║  Fix:                                                        ║"
+    echo "║    brew install bash                                         ║"
+    echo "║                                                              ║"
+    echo "║  Then re-run with the newer bash explicitly:                 ║"
+    echo "║    /opt/homebrew/bin/bash setup_env.sh   (Apple Silicon)     ║"
+    echo "║    /usr/local/bin/bash  setup_env.sh     (Intel Mac)         ║"
+    echo "║    bash setup_env.sh                     (Linux/HPC)         ║"
+    echo "╚══════════════════════════════════════════════════════════════╝"
+    echo ""
+    exit 1
+fi
+
 # Force the script to ignore the ~/.local/ folder to prevent version conflicts
 export PYTHONNOUSERSITE=1
 export OPENBLAS_NUM_THREADS=1

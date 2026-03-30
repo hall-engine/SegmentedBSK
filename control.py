@@ -32,10 +32,10 @@ class MissionController:
         self.j2_fn  = j2_fn
 
         # Pre-compute orbital timing
-        self.period = 2.0 * np.pi * np.sqrt(cfg.a_geo**3 / mu)   # [s]
-        n           = np.sqrt(mu / cfg.a_geo**3)                   # mean motion
+        self.period = 2.0 * np.pi * np.sqrt(cfg.a**3 / mu)   # [s]
+        n           = np.sqrt(mu / cfg.a**3)                   # mean motion
         E_peak      = np.radians(cfg.target_eccentric_anomaly_deg)
-        M_peak      = E_peak - cfg.e_geo * np.sin(E_peak)
+        M_peak      = E_peak - cfg.eccentricity * np.sin(E_peak)
         self.t_peak = M_peak / n                                   # [s from periapsis]
 
         # Star unit vector (constant, inertial)
@@ -76,6 +76,14 @@ class MissionController:
             return True, "Fine Observation", cfg.observation_kp, cfg.observation_kd
 
         if -(half_obs + cfg.cal_window_sec) < dt < -half_obs:
+            # Switch to observation gains at obs_gain_switch_fraction through the cal window.
+            # cal window runs from dt = -(half_obs + cal_window_sec) → dt = -half_obs.
+            # The switch point (in dt) is the tail of calibration:
+            #   dt_switch = -half_obs - cal_window_sec * (1 - fraction)
+            # Beyond that point (i.e. dt > dt_switch) the obs gains are already active.
+            switch_dt = -half_obs - cfg.cal_window_sec * (1.0 - cfg.obs_gain_switch_fraction)
+            if dt >= switch_dt:
+                return True, "Pre-Observation", cfg.observation_kp, cfg.observation_kd
             return True, "Calibration", cfg.calibration_kp, cfg.calibration_kd
 
         return False, "Drifting", 0.0, 0.0
@@ -227,7 +235,7 @@ class MissionController:
         print("=" * 80)
         print(f"    Orbital Period   : {self.period / 3600.0:.2f} hours")
         print(f"    Start Anomaly    : E={self.cfg.start_eccentric_anomaly_deg:.1f}°")
-        print(f"    Base Parameters  : a={self.cfg.a_geo:.1e} m, e={self.cfg.e_geo:.1f}, i={self.cfg.base_i_deg:.1f}°, Ω={self.cfg.base_raan_deg:.1f}°, ω={self.cfg.base_omega_deg:.1f}°")
+        print(f"    Base Parameters  : a={self.cfg.a:.1e} m, e={self.cfg.eccentricity:.1f}, i={self.cfg.base_i_deg:.1f}°, Ω={self.cfg.base_raan_deg:.1f}°, ω={self.cfg.base_omega_deg:.1f}°")
         print(f"    Peak (E={self.cfg.target_eccentric_anomaly_deg:.1f}°)      : {self.t_peak / 60.0:.1f} min from periapsis")
         print(f"    Cal window       : {self.cfg.cal_window_sec:.0f} s "
               f"(starts {(self.t_peak - self.cfg.obs_window_sec/2 - self.cfg.cal_window_sec)/60:.1f} min)")
