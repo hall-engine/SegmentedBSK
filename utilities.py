@@ -30,7 +30,7 @@ def sim_tag(cfg) -> str:
 
     path_ffdt_mrdt = f'ffdt_{cfg.ff_control_dt}_mrdt_{cfg.mirror_control_dt}'
 
-    pathPID = f'kp{cfg.calibration_kp:.1f}_kd{cfg.calibration_kd:.1f}_ki{cfg.ki_fraction:.2f}'
+    pathPID = f'calkp{cfg.calibration_kp:.1f}_calkd{cfg.calibration_kd:.1f}_obskp{cfg.observation_kp:.1f}_obskd{cfg.observation_kd:.1f}_obski{cfg.ki_fraction:.2f}'
 
     return pathPID
 

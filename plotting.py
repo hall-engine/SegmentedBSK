@@ -455,81 +455,127 @@ def plot_formation_error(pos_err_vec, time, star_vector, out_dir="./results", su
 
 def plot_observation_precision(pos_err_vec, time, phase, star_vector, out_dir="./results", frame_dcm=None, suffix=""):
     """
-    Observation window precision plot — error in the fixed aperture frame.
-    pos_err_vec is pre-projected into the aperture frame by main.py; no DCM rotation needed.
+    Observation window precision plot — two-column layout:
+      LEFT  : full context window (Calibration → Pre-Obs → Fine Obs), coarse scale
+      RIGHT : Fine Observation only, independently auto-scaled for precision
+
+    pos_err_vec is pre-projected into the aperture frame by main.py.
     """
     phase = np.array(phase)
 
-    obs_mask = (phase == "Fine Observation")
+    obs_mask     = (phase == "Fine Observation")
+    pre_obs_mask = (phase == "Pre-Observation")
+    cal_mask     = (phase == "Calibration")
+
     if not np.any(obs_mask):
         print("No observation window — skipping precision plot.")
         return
 
-    obs_idx  = np.where(obs_mask)[0]
-    n_obs    = len(obs_idx)
-    tail     = max(1, int(0.20 * n_obs))   # 20% of obs as cal context
-    start    = max(0, obs_idx[0] - tail)
-    sl       = slice(start, obs_idx[-1] + 1)
+    obs_idx = np.where(obs_mask)[0]
 
-    err_sl   = np.asarray(pos_err_vec[sl])   # already in aperture frame
-    t_sl     = time[sl]
-    ph_sl    = phase[sl]
-    mag      = np.linalg.norm(err_sl, axis=1)
+    # Left column: from start of Calibration through end of Fine Obs
+    if np.any(cal_mask):
+        start_left = np.where(cal_mask)[0][0]
+    elif np.any(pre_obs_mask):
+        start_left = np.where(pre_obs_mask)[0][0]
+    else:
+        start_left = max(0, obs_idx[0] - max(1, len(obs_idx) // 5))
+    sl_left  = slice(start_left, obs_idx[-1] + 1)
 
-    max_e    = np.max(np.abs(err_sl[ph_sl == "Fine Observation"]))
-    if max_e < 0.001:      scale, unit = 1000000., "um"
-    elif max_e < 0.1:      scale, unit = 1000., "mm"
-    elif max_e < 100.0:  scale, unit = 1.,    "m"
-    else:                scale, unit = 0.001, "km"
+    # Right column: Fine Observation only
+    sl_right = slice(obs_idx[0], obs_idx[-1] + 1)
 
-    t_obs0 = t_sl[ph_sl == "Fine Observation"][0]
-    t_rel  = t_sl - t_obs0
+    err_l = np.asarray(pos_err_vec[sl_left]);  t_l = time[sl_left];  ph_l = phase[sl_left]
+    err_r = np.asarray(pos_err_vec[sl_right]); t_r = time[sl_right]
+    mag_l = np.linalg.norm(err_l, axis=1)
+    mag_r = np.linalg.norm(err_r, axis=1)
 
-    fig, axes = plt.subplots(3, 1, figsize=(12, 10), sharex=True)
-    fig.suptitle("Observation Window — Precision Formation Error")
+    def _pick_scale(max_e):
+        if max_e < 0.001:   return 1e6, "μm"
+        elif max_e < 0.1:   return 1e3, "mm"
+        elif max_e < 100.0: return 1.0, "m"
+        else:               return 1e-3, "km"
 
-    cal_m = (ph_sl == "Calibration")
-    obs_m = (ph_sl == "Fine Observation")
-    for ax in axes:
-        if np.any(cal_m):
-            ax.axvspan(t_rel[cal_m][0], t_rel[cal_m][-1], alpha=0.2, color="red", label="Cal tail")
-        if np.any(obs_m):
-            ax.axvspan(t_rel[obs_m][0], t_rel[obs_m][-1], alpha=0.2, color="orange",  label="Obs window")
+    scale_l, unit_l = _pick_scale(np.max(np.abs(err_l)) if len(err_l) else 1.0)
+    scale_r, unit_r = _pick_scale(np.max(np.abs(err_r)) if len(err_r) else 1.0)
 
-    axes[0].plot(t_rel, err_sl[:, 0]*scale, "r-", linewidth=1.2, label="Lateral X")
-    axes[0].plot(t_rel, err_sl[:, 1]*scale, "g-", linewidth=1.2, label="Lateral Y")
-    axes[0].set_ylabel(f"Lateral [{unit}]"); axes[0].set_title("Transverse Alignment Error")
-    axes[0].legend(fontsize=9); axes[0].grid(alpha=0.3); axes[0].axhline(0, color="k", lw=0.5)
+    t_obs0  = time[obs_idx[0]]
+    t_l_rel = t_l - t_obs0
+    t_r_rel = t_r - t_obs0
 
-    axes[1].plot(t_rel, err_sl[:, 2]*scale, "b-", linewidth=1.5, label="Focal Length Error")
-    axes[1].set_ylabel(f"Focal [{unit}]"); axes[1].set_title("Optical Axis (Defocus) Error")
-    axes[1].legend(fontsize=9); axes[1].grid(alpha=0.3); axes[1].axhline(0, color="k", lw=0.5)
+    fig, axes = plt.subplots(3, 2, figsize=(18, 10),
+                             gridspec_kw={"width_ratios": [1.5, 1]})
+    fig.suptitle("Observation Window — Precision Formation Error", fontsize=14)
 
-    axes[2].plot(t_rel, mag*scale, color="white", linewidth=1.5, label="|Error|")
-    axes[2].set_ylabel(f"|Error| [{unit}]"); axes[2].set_xlabel("Time from Obs Start [s]")
-    axes[2].set_title("Total Formation Error Magnitude")
-    axes[2].legend(fontsize=9); axes[2].grid(alpha=0.3)
+    phase_shades = {
+        "Calibration":     ("tomato",     0.20),
+        "Pre-Observation": ("gold",       0.30),
+        "Fine Observation":("darkorange", 0.25),
+    }
+    for row in range(3):
+        for ph_name, (color, alpha) in phase_shades.items():
+            msk = (ph_l == ph_name)
+            if np.any(msk):
+                axes[row, 0].axvspan(t_l_rel[msk][0], t_l_rel[msk][-1],
+                                     alpha=alpha, color=color, label=ph_name)
+        axes[row, 1].axvspan(t_r_rel[0], t_r_rel[-1], alpha=0.15, color="darkorange")
 
-    obs_e   = err_sl[obs_m]
-    obs_mag = mag[obs_m]
-    stats   = (f"Obs Stats:\n"
-               f"  |e| mean: {np.mean(obs_mag)*scale:.8f} {unit}\n"
-               f"  |e| max:  {np.max(obs_mag)*scale:.8f} {unit}\n"
-               f"  |e| std:  {np.std(obs_mag)*scale:.8f} {unit}\n"
-               f"  Lat RMS:  {np.sqrt(np.mean(obs_e[:,0]**2+obs_e[:,1]**2))*scale:.8f} {unit}\n"
-               f"  Z mean:   {np.mean(obs_e[:,2])*scale:+.8f} {unit}")
-    fig.text(0.02, 0.02, stats, color="white", fontsize=8, fontfamily="monospace",
-             va="bottom", bbox=dict(boxstyle="round", facecolor="lightyellow", alpha=0.0))
+    # Row 0: Lateral X/Y
+    for col, (t_rel, err, sc, unit) in enumerate([
+            (t_l_rel, err_l, scale_l, unit_l),
+            (t_r_rel, err_r, scale_r, unit_r)]):
+        axes[0, col].plot(t_rel, err[:, 0]*sc, "r-", lw=1.2, label="Lateral X")
+        axes[0, col].plot(t_rel, err[:, 1]*sc, "g-", lw=1.2, label="Lateral Y")
+        axes[0, col].axhline(0, color="w", lw=0.5, ls="--")
+        axes[0, col].set_ylabel(f"Lateral [{unit}]")
+        axes[0, col].legend(fontsize=9); axes[0, col].grid(alpha=0.3)
+    axes[0, 0].set_title("Context: Cal → Pre-Obs → Fine Obs", fontsize=10)
+    axes[0, 1].set_title("Fine Observation (zoomed scale)", fontsize=10)
 
-    plt.tight_layout(rect=[0, 0.12, 1, 0.96])
-    for a in axes: set_dark_transparent(a)
-    
-    # Save raw data for analysis
+    # Row 1: Focal Z
+    for col, (t_rel, err, sc, unit) in enumerate([
+            (t_l_rel, err_l, scale_l, unit_l),
+            (t_r_rel, err_r, scale_r, unit_r)]):
+        axes[1, col].plot(t_rel, err[:, 2]*sc, "b-", lw=1.5, label="Focal Error")
+        axes[1, col].axhline(0, color="w", lw=0.5, ls="--")
+        axes[1, col].set_ylabel(f"Focal (Z) [{unit}]")
+        axes[1, col].legend(fontsize=9); axes[1, col].grid(alpha=0.3)
+    axes[1, 0].set_title("Optical Axis (Defocus)", fontsize=10)
+    axes[1, 1].set_title("Optical Axis (Defocus) — Fine Obs", fontsize=10)
+
+    # Row 2: Magnitude
+    for col, (t_rel, mag, sc, unit) in enumerate([
+            (t_l_rel, mag_l, scale_l, unit_l),
+            (t_r_rel, mag_r, scale_r, unit_r)]):
+        axes[2, col].plot(t_rel, mag*sc, color="white", lw=1.5, label="|Error|")
+        axes[2, col].set_ylabel(f"|Error| [{unit}]")
+        axes[2, col].set_xlabel("Time from Obs Start [s]")
+        axes[2, col].legend(fontsize=9); axes[2, col].grid(alpha=0.3)
+    axes[2, 0].set_title("Total Error Magnitude", fontsize=10)
+    axes[2, 1].set_title("Total Error Magnitude — Fine Obs", fontsize=10)
+
+    # Stats box: fine obs numbers only
+    stats = (f"Fine Obs Stats  [{unit_r}]\n"
+             f"  |e| mean : {np.mean(mag_r)*scale_r:.4f}\n"
+             f"  |e| max  : {np.max(mag_r)*scale_r:.4f}\n"
+             f"  |e| std  : {np.std(mag_r)*scale_r:.4f}\n"
+             f"  Lat RMS  : {np.sqrt(np.mean(err_r[:,0]**2+err_r[:,1]**2))*scale_r:.4f}\n"
+             f"  Z mean   : {np.mean(err_r[:,2])*scale_r:+.4f}")
+    fig.text(0.78, 0.01, stats, color="white", fontsize=8, fontfamily="monospace",
+             va="bottom", bbox=dict(boxstyle="round", facecolor="#111111", alpha=0.6))
+
+    plt.tight_layout(rect=[0, 0.07, 1, 0.96])
+    for a in axes.flat:
+        set_dark_transparent(a)
+
     data_path = os.path.join(out_dir, "observation_precision_data.npz")
-    np.savez(data_path, time_rel_sec=t_rel, error_aperture_m=err_sl, phase=ph_sl)
-    
+    np.savez(data_path, time_rel_sec=t_r_rel, error_aperture_m=err_r,
+             phase=phase[sl_right])
+
     plt.savefig(os.path.join(out_dir, f"observation_precision{suffix}.png"), dpi=150)
-    print(f"  Observation precision plot and data (.npz) saved to .../{os.path.relpath(out_dir)} (unit: {unit}).")
+    print(f"  Observation precision plot and data (.npz) saved to "
+          f".../{os.path.relpath(out_dir)} (unit: {unit_r}).")
+
 
 
 def plot_sun_tracker_error(css_sun_app, css_sun_det,  # noqa: E128

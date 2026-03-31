@@ -23,7 +23,7 @@ class SimConfig:
     base_raan_deg: float = 0.0                         # RAAN [deg]
     base_omega_deg: float = 0.0                        # Argument of periapsis [deg]
 
-    start_eccentric_anomaly_deg: float = 0.0           # Starting E [deg] (for jump-starting sim)
+    start_eccentric_anomaly_deg: float = 45.0           # Starting E [deg] (for jump-starting sim)
     time_init_string: str = "2024 APRIL 10 00:00:00.0"  # SPICE epoch SN2024aggi
 
     # ==================================================================================================
@@ -54,8 +54,8 @@ class SimConfig:
     cal_window_sec: float = 600.0                                   # Calibration phase duration [s]
     obs_window_sec: float = 300.0                                   # Observation phase duration [s]
     target_eccentric_anomaly_deg: float = 90.0                      # Eccentric anomaly for peak concentration [deg]
-    ff_control_dt: float = 0.01                                     # Formation Flight (translation) control step [s]
-    mirror_control_dt: float = 0.01                                 # Mirror segment (optics) control step [s]
+    ff_control_dt: float = 0.1                                     # Formation Flight (translation) control step [s]
+    mirror_control_dt: float = 0.1                                 # Mirror segment (optics) control step [s]
     time_step_sec: float = 0.01    # Simulation physics step [s]
 
     # ==================================================================================================
@@ -70,7 +70,7 @@ class SimConfig:
     ki_fraction: float = 0.1             # Integral gain = ki_fraction * kp
     integral_limit: float = 20.0        # Anti-windup clamp per axis [N·s]
 
-    obs_gain_switch_fraction: float = 0.9
+    obs_gain_switch_fraction: float = 0.7
     """Fraction through the calibration window at which the controller switches
     from calibration gains to observation gains, giving the formation time to
     tighten up before the fine observation phase begins.

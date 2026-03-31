@@ -7,7 +7,6 @@ PID controller gains, to quantify the ΔV / residual trade-off.
 Run with:
     python monte_carlo.py
 
-Edit KP_VALUES, KD_VALUES, KI_FRACTION_VALUES below to control the sweep.
 Edit N_WORKERS to control parallelism.
 
 Notes
@@ -34,9 +33,11 @@ matplotlib.use("Agg")   # no display in worker processes
 import itertools
 
 # Sweep over controller gains
-KP_VALUES          = [5.0, 25.0, 50.0, 100.0]
-KD_VALUES          = [50.0, 100.0, 200.0, 500.0]
-KI_FRACTION_VALUES = [0.0, 0.05, 0.1, 0.2]
+CAL_KP_VALUES      = [0.5, 1.0, 1.5, 2.0, 3.0, 4.0]
+CAL_KD_VALUES      = [10,  15,  20,  28,  36,  45 ]
+OBS_KP_VALUES      = [25.0]      # fix obs for now
+OBS_KD_VALUES      = [100.0]
+KI_FRACTION_VALUES = [0.05, 0.1, 0.2]
 
 # These kwargs are passed to main.run() for EVERY simulation (fixed settings).
 FIXED_KWARGS = dict(
@@ -44,7 +45,7 @@ FIXED_KWARGS = dict(
     show_plots       = False,   # save all plots after each sim
     save_data        = True,    # keep h5 and config saved
     mirror_plotting  = False,   # run mirror animation (slow — keep False for sweeps)
-    disable_progress = True,    # suppress tqdm in workers
+    disable_progress = False,    # suppress tqdm in workers
 )
 
 # Number of sims to run simultaneously.
@@ -65,11 +66,13 @@ def _worker(kwargs: dict) -> str:
     from config import SimConfig
     import main as simulation
 
-    kp = kwargs.get("observation_kp")
-    kd = kwargs.get("observation_kd")
-    ki = kwargs.get("ki_fraction")
+    calkp = kwargs.get("calibration_kp")
+    calkd = kwargs.get("calibration_kd")
+    obskp = kwargs.get("observation_kp")
+    obskd = kwargs.get("observation_kd")
+    ki    = kwargs.get("ki_fraction")
 
-    tag = f"kp={kp}_kd={kd}_ki={ki}"
+    tag = f"calkp={calkp}_calkd={calkd}_obskp={obskp}_obskd={obskd}_ki={ki}"
     print(f"[START] {tag}", flush=True)
     try:
         cfg = SimConfig()
@@ -86,12 +89,12 @@ def _worker(kwargs: dict) -> str:
 def build_param_grid() -> list[dict]:
     """Return one kwarg dict per parameter set."""
     grid = []
-    for kp, kd, ki in itertools.product(KP_VALUES, KD_VALUES, KI_FRACTION_VALUES):
+    for calkp, calkd, obskp, obskd, ki in itertools.product(CAL_KP_VALUES, CAL_KD_VALUES, OBS_KP_VALUES, OBS_KD_VALUES, KI_FRACTION_VALUES):
         kw = dict(FIXED_KWARGS)
-        kw["observation_kp"] = float(kp)
-        kw["observation_kd"] = float(kd)
-        kw["calibration_kp"] = float(kp)
-        kw["calibration_kd"] = float(kd)
+        kw["observation_kp"] = float(obskp)
+        kw["observation_kd"] = float(obskd)
+        kw["calibration_kp"] = float(calkp)
+        kw["calibration_kd"] = float(calkd)
         kw["ki_fraction"]    = float(ki)
         grid.append(kw)
     return grid
@@ -125,8 +128,10 @@ if __name__ == "__main__":
 
         print("=" * 60)
         print(f"  Controller Gain Sweep: {n_sims} sims, {n_workers} parallel workers")
-        print(f"  kp: {KP_VALUES}")
-        print(f"  kd: {KD_VALUES}")
+        print(f"  calkp: {CAL_KP_VALUES}")
+        print(f"  calkd: {CAL_KD_VALUES}")
+        print(f"  obskp: {OBS_KP_VALUES}")
+        print(f"  obskd: {OBS_KD_VALUES}")
         print(f"  ki_fraction: {KI_FRACTION_VALUES}")
         print("=" * 60)
 
