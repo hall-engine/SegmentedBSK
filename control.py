@@ -36,7 +36,19 @@ class MissionController:
         n           = np.sqrt(mu / cfg.a**3)                   # mean motion
         E_peak      = np.radians(cfg.target_eccentric_anomaly_deg)
         M_peak      = E_peak - cfg.eccentricity * np.sin(E_peak)
-        self.t_peak = M_peak / n                                   # [s from periapsis]
+        t_peak_periapsis = M_peak / n                              # [s from periapsis]
+
+        # The simulation clock starts at E = start_eccentric_anomaly_deg, NOT at periapsis.
+        # We must express t_peak relative to the simulation start time, so that the
+        # compute_phase() comparison (t_now_sec vs self.t_peak) fires at the correct
+        # real simulation time.  Without this correction the calibration/observation
+        # windows fire too early by exactly the periapsis-to-start transit time.
+        E_start  = np.radians(cfg.start_eccentric_anomaly_deg)
+        M_start  = E_start - cfg.eccentricity * np.sin(E_start)
+        t_start  = M_start / n                                     # [s from periapsis to sim t=0]
+
+        # Time from sim start to peak, wrapped into [0, period) so it is always positive.
+        self.t_peak = (t_peak_periapsis - t_start) % self.period   # [s from sim start]
 
         # Star unit vector (constant, inertial)
         sv = np.array(cfg.star_vector, dtype=float)
@@ -236,9 +248,10 @@ class MissionController:
         print(f"    Orbital Period   : {self.period / 3600.0:.2f} hours")
         print(f"    Start Anomaly    : E={self.cfg.start_eccentric_anomaly_deg:.1f}°")
         print(f"    Base Parameters  : a={self.cfg.a:.1e} m, e={self.cfg.eccentricity:.1f}, i={self.cfg.base_i_deg:.1f}°, Ω={self.cfg.base_raan_deg:.1f}°, ω={self.cfg.base_omega_deg:.1f}°")
-        print(f"    Peak (E={self.cfg.target_eccentric_anomaly_deg:.1f}°)      : {self.t_peak / 60.0:.1f} min from periapsis")
+        print(f"    Peak (E={self.cfg.target_eccentric_anomaly_deg:.1f}°)      : {self.t_peak / 60.0:.1f} min from sim start  "
+              f"(start anomaly E={self.cfg.start_eccentric_anomaly_deg:.1f}°)")
         print(f"    Cal window       : {self.cfg.cal_window_sec:.0f} s "
-              f"(starts {(self.t_peak - self.cfg.obs_window_sec/2 - self.cfg.cal_window_sec)/60:.1f} min)")
+              f"(starts at sim t={(self.t_peak - self.cfg.obs_window_sec/2 - self.cfg.cal_window_sec)/60:.1f} min)")
         print(f"    Obs window       : {self.cfg.obs_window_sec:.0f} s "
               f"(±{self.cfg.obs_window_sec/2:.0f} s of peak)")
         print("=" * 80)

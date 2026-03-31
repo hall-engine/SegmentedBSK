@@ -20,10 +20,10 @@ class SimConfig:
     perigee_radius: float = 20_000_000.0               # Perigee radius r_p [m]  (a = r_p / (1 - e))
     eccentricity: float = 0.7                          # Eccentricity
     base_i_deg: float = 0.0                            # Base inclination [deg]
-    base_raan_deg: float = 0.0                         # RAAN [deg]
+    base_raan_deg: float = 50.0                         # RAAN [deg]
     base_omega_deg: float = 0.0                        # Argument of periapsis [deg]
 
-    start_eccentric_anomaly_deg: float = 45.0           # Starting E [deg] (for jump-starting sim)
+    start_eccentric_anomaly_deg: float = 80.0           # Starting E [deg] (for jump-starting sim)
     time_init_string: str = "2024 APRIL 10 00:00:00.0"  # SPICE epoch SN2024aggi
 
     # ==================================================================================================
@@ -49,9 +49,9 @@ class SimConfig:
     # MISSION TIMING
     # ==================================================================================================
     ### -important
-    period_multiple: float = 0.15                                   # THIS ONE Fraction of orbital period to simulate
+    period_multiple: float = 0.06                                   # THIS ONE Fraction of orbital period to simulate
     ### -important
-    cal_window_sec: float = 600.0                                   # Calibration phase duration [s]
+    cal_window_sec: float = 300.0                                   # Calibration phase duration [s]
     obs_window_sec: float = 300.0                                   # Observation phase duration [s]
     target_eccentric_anomaly_deg: float = 90.0                      # Eccentric anomaly for peak concentration [deg]
     ff_control_dt: float = 0.01                                     # Formation Flight (translation) control step [s]
