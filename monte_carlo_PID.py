@@ -33,11 +33,12 @@ matplotlib.use("Agg")   # no display in worker processes
 import itertools
 
 # Sweep over controller gains
-CAL_KP_VALUES      = [0.5, 1.0, 1.5, 2.0, 3.0, 4.0]
-CAL_KD_VALUES      = [10,  15,  20,  28,  36,  45 ]
-OBS_KP_VALUES      = [25.0]      # fix obs for now
-OBS_KD_VALUES      = [100.0]
-KI_FRACTION_VALUES = [0.05, 0.1, 0.2]
+CAL_KP_VALUES      = [1.0]
+CAL_KD_VALUES      = [20.0]
+OBS_KP_VALUES      = [17.5, 18.75, 20.0, 21.25,  25.0, 22.5, 30]      # fix obs for now
+OBS_KD_VALUES      = [80.0,  90.0, 100.0,105.0,  110.0,115.0, 120.0, 130.0]
+KI_FRACTION_VALUES = [0.05]
+
 
 # These kwargs are passed to main.run() for EVERY simulation (fixed settings).
 FIXED_KWARGS = dict(
