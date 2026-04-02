@@ -32,7 +32,9 @@ def sim_tag(cfg) -> str:
 
     pathPID = f'calkp{cfg.calibration_kp:.1f}_calkd{cfg.calibration_kd:.1f}_obskp{cfg.observation_kp:.1f}_obskd{cfg.observation_kd:.1f}_obski{cfg.ki_fraction:.2f}'
 
-    return pathPID
+    sphereSweep = f'i{cfg.base_i_deg}_raan{cfg.base_raan_deg}_omega{cfg.base_omega_deg}'
+
+    return sphereSweep
 
 
 def create_sim_dir(cfg, results_base="./results"):

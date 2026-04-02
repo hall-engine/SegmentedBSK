@@ -19,11 +19,11 @@ class SimConfig:
     # ==================================================================================================
     perigee_radius: float = 20_000_000.0               # Perigee radius r_p [m]  (a = r_p / (1 - e))
     eccentricity: float = 0.7                          # Eccentricity
-    base_i_deg: float = 0.0                            # Base inclination [deg]
+    base_i_deg: float = 135.0                            # Base inclination [deg]
     base_raan_deg: float = 50.0                         # RAAN [deg]
-    base_omega_deg: float = 0.0                        # Argument of periapsis [deg]
+    base_omega_deg: float = 40.0                        # Argument of periapsis [deg]
 
-    start_eccentric_anomaly_deg: float = 80.0           # Starting E [deg] (for jump-starting sim)
+    start_eccentric_anomaly_deg: float = 85.0           # Starting E [deg] (for jump-starting sim)
     time_init_string: str = "2024 APRIL 10 00:00:00.0"  # SPICE epoch SN2024aggi
 
     # ==================================================================================================
@@ -49,14 +49,14 @@ class SimConfig:
     # MISSION TIMING
     # ==================================================================================================
     ### -important
-    period_multiple: float = 0.06                                   # THIS ONE Fraction of orbital period to simulate
+    period_multiple: float = 0.03                                   # THIS ONE Fraction of orbital period to simulate
     ### -important
     cal_window_sec: float = 300.0                                   # Calibration phase duration [s]
     obs_window_sec: float = 300.0                                   # Observation phase duration [s]
     target_eccentric_anomaly_deg: float = 90.0                      # Eccentric anomaly for peak concentration [deg]
-    ff_control_dt: float = 0.01                                     # Formation Flight (translation) control step [s]
-    mirror_control_dt: float = 0.01                                 # Mirror segment (optics) control step [s]
-    time_step_sec: float = 0.01    # Simulation physics step [s]
+    ff_control_dt: float = 0.1                                     # Formation Flight (translation) control step [s]
+    mirror_control_dt: float = 0.1                                 # Mirror segment (optics) control step [s]
+    time_step_sec: float = 0.1    # Simulation physics step [s]
 
     # ==================================================================================================
 
@@ -256,4 +256,4 @@ class SimConfig:
     # ==================================================================================================
     # OUTPUT DIRECTORY
     # ==================================================================================================
-    results_base: str = f"results/controller_sweep/"
+    results_base: str = f"results/sphere_sweep/"
