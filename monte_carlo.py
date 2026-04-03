@@ -34,17 +34,17 @@ matplotlib.use("Agg")   # no display in worker processes
 import itertools
 
 # Sweep over orbital parameters
-BASE_I_DEG_VALUES     = [0.0, 30.0]           # Base inclination [deg]
-BASE_RAAN_DEG_VALUES  = [50.0, 130.0, 210.0]          # RAAN [deg]
+BASE_I_DEG_VALUES     = [0.0]           # Base inclination [deg]
+BASE_RAAN_DEG_VALUES  = [0.0,45.0, 90.0, 180.0, 270, 360]          # RAAN [deg]
 BASE_OMEGA_DEG_VALUES = [0.0]           # Argument of periapsis [deg]
 
 
 # These kwargs are passed to main.run() for EVERY simulation (fixed settings).
 FIXED_KWARGS = dict(
     read_every       = 100,     # mirror plotting frame interval
-    show_plots       = False,   # save all plots after each sim
+    show_plots       = True,   # save all plots after each sim
     save_data        = True,    # keep h5 and config saved
-    mirror_plotting  = False,   # run mirror animation (slow — keep False for sweeps)
+    mirror_plotting  = True,   # run mirror animation (slow — keep False for sweeps)
     disable_progress = False,    # suppress tqdm in workers
 )
 

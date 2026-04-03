@@ -26,10 +26,14 @@ class MissionController:
     j2_fn   : callable(r_vec, mass, mu) → force [N], or None if J2 disabled
     """
 
-    def __init__(self, cfg: SimConfig, mu: float, j2_fn=None):
+    def __init__(self, cfg: SimConfig, mu: float, j2_fn=None, aperture_frame_dcm=None):
         self.cfg    = cfg
         self.mu     = mu
         self.j2_fn  = j2_fn
+        # Frozen perifocal DCM (ECI → aperture frame).  All PID + quantization
+        # operates in this frame so that metrology and MIB rounding are
+        # independent of RAAN / orbital orientation in ECI.
+        self.aperture_frame_dcm = aperture_frame_dcm if aperture_frame_dcm is not None else np.eye(3)
 
         # Pre-compute orbital timing
         self.period = 2.0 * np.pi * np.sqrt(cfg.a**3 / mu)   # [s]
@@ -130,11 +134,12 @@ class MissionController:
         """
         cfg = self.cfg
         mu  = self.mu
+        dcm = self.aperture_frame_dcm      # ECI → aperture frame
 
         r_target = r_c + self.star_hat * focal_length
         v_target = v_c.copy()
 
-        # ── Feed-forward: differential gravity (J2 only; native SRP is internal) ──
+        # ── Feed-forward: differential gravity (computed in ECI, then rotated) ──
         r_c_norm = np.linalg.norm(r_c)
         r_t_norm = np.linalg.norm(r_target)
         g_chief  = -mu * r_c / r_c_norm**3 + (j2_app / cfg.app_mass if self.j2_fn else 0.0)
@@ -143,17 +148,17 @@ class MissionController:
         else:
             g_target = -mu * r_target / r_t_norm**3
         delta_g  = g_target - g_chief
-        force_ff = cfg.det_mass * delta_g
+        force_ff_ap = dcm @ (cfg.det_mass * delta_g)   # rotate to aperture frame
 
-        # ── PID ──────────────────────────────────────────────────────────────
-        pos_err_raw = r_target - r_d
-        vel_err     = v_target - v_d
+        # ── PID (all in aperture frame) ──────────────────────────────────────
+        pos_err_raw = dcm @ (r_target - r_d)           # aperture frame
+        vel_err     = dcm @ (v_target - v_d)           # aperture frame
 
-        # 1. Metrology Resolution (Quantize input error)
+        # 1. Metrology Resolution (quantize per-aperture-axis)
         res = cfg.metrology_resolution_m
         pos_err = np.round(pos_err_raw / res) * res
 
-        # 2. Control Deadband (Idle if error is too small)
+        # 2. Control Deadband (magnitude — frame-invariant)
         if np.linalg.norm(pos_err) < cfg.control_deadband_m:
             pos_err = np.zeros(3)
 
@@ -162,30 +167,31 @@ class MissionController:
                                    -cfg.integral_limit, cfg.integral_limit)
 
         ki       = cfg.ki_fraction * kp
-        force_n_raw = force_ff + kp * pos_err + ki * self._integral + kd * vel_err
+        force_ap_raw = force_ff_ap + kp * pos_err + ki * self._integral + kd * vel_err
 
-        # 3. Thruster Quantization (Delta-Sigma PWM / Hysteresis / Simple Rounding)
+        # 3. Thruster Quantization (per-aperture-axis: Delta-Sigma PWM / Hysteresis / Simple Rounding)
         mib = cfg.thruster_mib_n
         
         if cfg.use_pvm:
             # PWM / Error Diffusion: maintain sub-MIB precision via duty-cycling
-            self.force_accumulator += force_n_raw
-            force_n = np.round(self.force_accumulator / mib) * mib
-            self.force_accumulator -= force_n
+            self.force_accumulator += force_ap_raw
+            force_ap = np.round(self.force_accumulator / mib) * mib
+            self.force_accumulator -= force_ap
         elif cfg.use_hysteresis:
             # Schmitt Trigger / Hysteresis fallback:
             slack = 0.2 * mib 
-            diff  = force_n_raw - self.prev_force_n
-            force_n = self.prev_force_n.copy()
+            diff  = force_ap_raw - self.prev_force_n
+            force_ap = self.prev_force_n.copy()
             for axis in range(3):
                 if abs(diff[axis]) > (0.5 * mib + slack):
-                    force_n[axis] = np.round(force_n_raw[axis] / mib) * mib
+                    force_ap[axis] = np.round(force_ap_raw[axis] / mib) * mib
         else:
             # Simple Rounding
-            force_n = np.round(force_n_raw / mib) * mib
+            force_ap = np.round(force_ap_raw / mib) * mib
         
-        self.prev_force_n = force_n.copy()
-        return force_n
+        self.prev_force_n = force_ap.copy()
+        # Rotate back to ECI for Basilisk's inertial force message
+        return dcm.T @ force_ap
 
     def reset_integral(self):
         """Reset the integral accumulator (called when leaving engaged phase)."""

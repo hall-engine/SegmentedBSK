@@ -803,7 +803,7 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     # =========================================================================
     # 10. Mission Controller
     # =========================================================================
-    controller = MissionController(cfg, mu, j2_fn)
+    controller = MissionController(cfg, mu, j2_fn, aperture_frame_dcm=aperture_frame_dcm)
     controller.star_hat = np.array(cfg.star_vector, dtype=float)  # ensure uses corrected ĥ
     controller.print_timing()
 
