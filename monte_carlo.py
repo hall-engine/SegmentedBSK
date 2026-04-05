@@ -34,9 +34,9 @@ matplotlib.use("Agg")   # no display in worker processes
 import itertools
 
 # Sweep over orbital parameters
-BASE_I_DEG_VALUES     = [0.0]           # Base inclination [deg]
-BASE_RAAN_DEG_VALUES  = [0.0,45.0, 90.0, 180.0, 270, 360]          # RAAN [deg]
-BASE_OMEGA_DEG_VALUES = [0.0]           # Argument of periapsis [deg]
+BASE_I_DEG_VALUES     = np.linspace(0.0, 180.0, 9, endpoint=True)             # Base inclination [deg]
+BASE_RAAN_DEG_VALUES  = np.linspace(0.0, 360.0, 16, endpoint=False)       # RAAN [deg]
+BASE_OMEGA_DEG_VALUES = [0.0]                                               # Argument of periapsis [deg]
 
 
 # These kwargs are passed to main.run() for EVERY simulation (fixed settings).

@@ -87,10 +87,35 @@ class segmentLQR:
         error = current_mirror_state - desired_mirror_state
         # LQR control law
         command = -self.K_full @ error
+
+        # ── 1. Force / torque saturation ───────────────────────────────────────
+        # Hard physical limit: actuator cannot produce more than max force/torque.
+        max_tau = getattr(self.cfg, 'mirror_max_torque_nm',      0.5)
+        max_fz  = getattr(self.cfg, 'mirror_max_piston_force_n', 100.0)
+        command[0] = np.clip(command[0], -max_tau, max_tau)   # tip torque
+        command[1] = np.clip(command[1], -max_tau, max_tau)   # tilt torque
+        command[2] = np.clip(command[2], -max_fz,  max_fz)   # piston force
+
         # system dynamics
         dx = (self.A @ current_mirror_state) + (self.B @ command)
         # Euler integration
         new_mirror_state = current_mirror_state + dx * dt
+
+        # ── 2. Slew rate limiting ──────────────────────────────────────────────
+        # Clamp velocities to actuator bandwidth limits.
+        max_tt_rate = getattr(self.cfg, 'mirror_max_tiptilt_rate_radps', 50e-3)
+        max_pz_rate = getattr(self.cfg, 'mirror_max_piston_rate_mps',    5e-3)
+        new_mirror_state[3] = np.clip(new_mirror_state[3], -max_tt_rate, max_tt_rate)  # tip rate
+        new_mirror_state[4] = np.clip(new_mirror_state[4], -max_tt_rate, max_tt_rate)  # tilt rate
+        new_mirror_state[5] = np.clip(new_mirror_state[5], -max_pz_rate, max_pz_rate)  # piston rate
+
+        # ── 3. Stroke limiting ─────────────────────────────────────────────────
+        # Clamp displacement to physical actuator travel.
+        max_tt_stroke = getattr(self.cfg, 'mirror_max_tiptilt_stroke_rad', 1e-3)
+        max_pz_stroke = getattr(self.cfg, 'mirror_max_piston_stroke_m',   100e-6)
+        new_mirror_state[0] = np.clip(new_mirror_state[0], -max_tt_stroke, max_tt_stroke)  # tip
+        new_mirror_state[1] = np.clip(new_mirror_state[1], -max_tt_stroke, max_tt_stroke)  # tilt
+        new_mirror_state[2] = np.clip(new_mirror_state[2], -max_pz_stroke, max_pz_stroke)  # piston
 
         if debug:
             print(state.number)

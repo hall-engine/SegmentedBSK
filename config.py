@@ -235,6 +235,42 @@ class SimConfig:
     """Minimum tip/tilt increment of the segment actuator [rad].
     1 nrad corresponds to a 16-bit voice-coil or fine-pitch piezo."""
 
+
+    ###################################################################################
+    # ── MIRROR ACTUATOR physical limits (top-of-range space-qualified hardware) ──────
+    mirror_max_piston_stroke_m: float = 130e-6
+    """Maximum piston displacement from nominal [m].  ±130 µm.
+    Reference: CEDRAT APA120ML amplified piezo actuator — 130 µm nominal stroke,
+    1400 N blocked force.  Space-qualified per ECSS standards; heritage on
+    Rosetta, IASI-NG, MTG, Psyche (Cedrat Technologies)."""
+
+    mirror_max_tiptilt_stroke_rad: float = 2e-3
+    """Maximum tip/tilt angle from nominal [rad].  ±2 mrad mechanical.
+    Reference: PI S-340 PICMA® piezo tip/tilt platform — 2 mrad mechanical
+    tilt per axis, sub-ms response, 20 nrad resolution (Physik Instrumente)."""
+
+    mirror_max_piston_rate_mps: float = 5e-3
+    """Maximum piston slew rate [m/s].  5 mm/s.
+    Derived from CEDRAT APA120ML bandwidth (~kHz first resonance × 130 µm stroke).
+    Conservative for amplified piezo stacks with sub-ms step response."""
+
+    mirror_max_tiptilt_rate_radps: float = 50e-3
+    """Maximum tip/tilt angular rate [rad/s].  50 mrad/s.
+    Reference: Voice-coil fast steering mirrors achieve 100 Hz–1 kHz bandwidth
+    with ±1–5 mrad range (ESMATS heritage).  50 mrad/s is conservative for
+    a PI S-340 class actuator at full stroke."""
+
+    mirror_max_torque_nm: float = 0.5
+    """Maximum torque per tip/tilt actuator [N·m].
+    Representative of voice-coil or piezo-lever mechanisms at rated current.
+    PI S-340 class platforms produce comparable torques through lever-amplified
+    PICMA® stacks driving flexure-guided stages."""
+
+    mirror_max_piston_force_n: float = 100.0
+    """Maximum piston actuator force [N].  De-rated from blocked force.
+    Reference: CEDRAT APA120ML blocked force = 1400 N; APA60S = 130 N.
+    100 N is a conservative operating-point de-rating for dynamic use."""
+
     # ==================================================================================================
     # SRP REFLECTIVITY (used even when enable_srp=True via native module)
     # ==================================================================================================
