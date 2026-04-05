@@ -19,12 +19,12 @@ class SimConfig:
     # ==================================================================================================
     perigee_radius: float = 20_000_000.0               # Perigee radius r_p [m]  (a = r_p / (1 - e))
     eccentricity: float = 0.7                          # Eccentricity
-    base_i_deg: float = 0.0                            # Base inclination [deg]
-    base_raan_deg: float = 0.0                         # RAAN [deg]
+    base_i_deg: float = 122.92                         # Base inclination [deg]  — retrograde, ĥ points to SN 2024ggi
+    base_raan_deg: float = 259.59                      # RAAN [deg]  — sets ĥ azimuth toward RA 11h18m22s
     base_omega_deg: float = 0.0                        # Argument of periapsis [deg]
 
     start_eccentric_anomaly_deg: float = 85.0           # Starting E [deg] (for jump-starting sim)
-    time_init_string: str = "2024 APRIL 10 00:00:00.0"  # SPICE epoch SN2024aggi
+    time_init_string: str = "2024 APRIL 11 03:21:00.0"  # SPICE epoch — ATLAS detection of SN 2024ggi
 
     # ==================================================================================================
     # FORMATION DESIGN
@@ -54,9 +54,9 @@ class SimConfig:
     cal_window_sec: float = 600.0                                   # Calibration phase duration [s]
     obs_window_sec: float = 300.0                                   # Observation phase duration [s]
     target_eccentric_anomaly_deg: float = 90.0                      # Eccentric anomaly for peak concentration [deg]
-    ff_control_dt: float = 0.1                                     # Formation Flight (translation) control step [s]
-    mirror_control_dt: float = 0.1                                 # Mirror segment (optics) control step [s]
-    time_step_sec: float = 0.1    # Simulation physics step [s]
+    ff_control_dt: float = 0.01                                     # Formation Flight (translation) control step [s]
+    mirror_control_dt: float = 0.01                                 # Mirror segment (optics) control step [s]
+    time_step_sec: float = 0.01    # Simulation physics step [s]
 
     # ==================================================================================================
 

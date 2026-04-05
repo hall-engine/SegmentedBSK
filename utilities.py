@@ -34,7 +34,9 @@ def sim_tag(cfg) -> str:
 
     sphereSweep = f'i{cfg.base_i_deg}_raan{cfg.base_raan_deg}_omega{cfg.base_omega_deg}'
 
-    return sphereSweep
+    ringSweep = f'rings{cfg.rings}_focal{cfg.target_focal_length}'
+
+    return ringSweep
 
 
 def create_sim_dir(cfg, results_base="./results"):

@@ -1,9 +1,9 @@
 """
-monte_carlo.py — Rings × Focal Length sweep for the formation simulation
-=========================================================================
-Runs the same configuration multiple times, each with a different
-combination of mirror ring count and target focal length to characterise
-performance across different aperture sizes and formation separations.
+monte_carlo.py — Orbital parameter sweep for the formation simulation
+======================================================================
+Runs the same configuration multiple times, each with different
+orbital parameters (inclination, RAAN, argument of periapsis) to
+characterise performance across different orbit geometries.
 
 Run with:
     python monte_carlo.py
@@ -17,7 +17,7 @@ Notes
   Basilisk state, no thread-safety issues.
 - Workers call main.run(**kwargs) exactly as main.py's __main__ block does.
 - If a worker crashes it prints the traceback and the sweep continues.
-- Results go to results/sphere_sweep/<param_tag>/ (one sub-folder per combo).
+- Results go to results/controller_sweep/<param_tag>/ (one sub-folder per combo).
 - On HPC: set --cpus-per-task in your SLURM script; N_WORKERS auto-reads
   SLURM_CPUS_PER_TASK.  For multi-node HPC use RUNSIM.job array mode.
 """
@@ -33,18 +33,19 @@ matplotlib.use("Agg")   # no display in worker processes
 
 import itertools
 
-# Sweep over aperture / formation parameters
-RINGS_VALUES          = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]  # Number of hexagonal mirror rings
-FOCAL_LENGTH_VALUES   = [5000, 6000, 7000]               # Target focal length [m]
+# Sweep over orbital parameters
+BASE_I_DEG_VALUES     = np.linspace(0.0, 180.0, 9, endpoint=True)             # Base inclination [deg]
+BASE_RAAN_DEG_VALUES  = np.linspace(0.0, 360.0, 16, endpoint=False)       # RAAN [deg]
+BASE_OMEGA_DEG_VALUES = [0.0]                                               # Argument of periapsis [deg]
 
 
 # These kwargs are passed to main.run() for EVERY simulation (fixed settings).
 FIXED_KWARGS = dict(
     read_every       = 100,     # mirror plotting frame interval
-    show_plots       = False,    # save all plots after each sim
+    show_plots       = True,   # save all plots after each sim
     save_data        = True,    # keep h5 and config saved
-    mirror_plotting  = False,   # skip mirror animation for sweeps (slow)
-    disable_progress = True,    # suppress tqdm in parallel workers
+    mirror_plotting  = True,   # run mirror animation (slow — keep False for sweeps)
+    disable_progress = False,    # suppress tqdm in workers
 )
 
 # Number of sims to run simultaneously.
@@ -65,10 +66,11 @@ def _worker(kwargs: dict) -> str:
     from config import SimConfig
     import main as simulation
 
-    rings = kwargs.get("rings")
-    focal = kwargs.get("target_focal_length")
+    i_deg    = kwargs.get("base_i_deg")
+    raan_deg = kwargs.get("base_raan_deg")
+    omega_deg = kwargs.get("base_omega_deg")
 
-    tag = f"rings={rings}_focal={focal}m"
+    tag = f"i={i_deg}_raan={raan_deg}_omega={omega_deg}"
     print(f"[START] {tag}", flush=True)
     try:
         cfg = SimConfig()
@@ -85,10 +87,11 @@ def _worker(kwargs: dict) -> str:
 def build_param_grid() -> list[dict]:
     """Return one kwarg dict per parameter set."""
     grid = []
-    for rings, focal in itertools.product(RINGS_VALUES, FOCAL_LENGTH_VALUES):
+    for i_deg, raan_deg, omega_deg in itertools.product(BASE_I_DEG_VALUES, BASE_RAAN_DEG_VALUES, BASE_OMEGA_DEG_VALUES):
         kw = dict(FIXED_KWARGS)
-        kw["rings"]                = int(rings)
-        kw["target_focal_length"]  = float(focal)
+        kw["base_i_deg"]     = float(i_deg)
+        kw["base_raan_deg"]  = float(raan_deg)
+        kw["base_omega_deg"] = float(omega_deg)
         grid.append(kw)
     return grid
 
@@ -120,9 +123,10 @@ if __name__ == "__main__":
         n_workers = min(N_WORKERS, n_sims)
 
         print("=" * 60)
-        print(f"  Rings × Focal Length Sweep: {n_sims} sims, {n_workers} parallel workers")
-        print(f"  rings:              {RINGS_VALUES}")
-        print(f"  target_focal_length: {FOCAL_LENGTH_VALUES}")
+        print(f"  Orbital Parameter Sweep: {n_sims} sims, {n_workers} parallel workers")
+        print(f"  base_i_deg:     {BASE_I_DEG_VALUES}")
+        print(f"  base_raan_deg:  {BASE_RAAN_DEG_VALUES}")
+        print(f"  base_omega_deg: {BASE_OMEGA_DEG_VALUES}")
         print("=" * 60)
 
         with multiprocessing.Pool(processes=n_workers) as pool:
