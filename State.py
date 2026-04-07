@@ -21,7 +21,8 @@ class State():
         self.desired_mirror_actuation = desired_mirror_actuation
         self.point_on_det_plane = np.zeros((1,2))
         # create histories array
-        self.hist_position = np.empty((0, 6))                       # [x, y, z, theta_z, theta_y, theta_z]
+        # NOTE: position is constant (never changes during sim), stored as (1, 6)
+        #       to save HDF5 space.  See self.position for the live value.
         self.hist_mirror_actuation = np.empty((0, 6))               # [tip, tilt, piston] (phi_x, phi_y, v_z)
         self.hist_desired_mirror_actuation = np.empty((0, 6))       # [tip, tilt, piston, tip_dot, tilt_dot, piston_dot]
         self.hist_point_on_det_plane = np.empty((0,2))              # [dX and dY]
@@ -34,7 +35,7 @@ class State():
         None.
         """
         # Append the current state to the history arrays
-        self.hist_position = np.append(self.hist_position, [self.position], axis=0)
+
         self.hist_mirror_actuation = np.append(self.hist_mirror_actuation, [self.mirror_actuation], axis=0)
         self.hist_desired_mirror_actuation = np.append(self.hist_desired_mirror_actuation, [self.desired_mirror_actuation], axis=0)
         self.hist_point_on_det_plane = np.append(self.hist_point_on_det_plane,  [self.point_on_det_plane], axis=0)

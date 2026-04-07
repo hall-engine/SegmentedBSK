@@ -103,7 +103,7 @@ def save_states_h5(states: dict, target_path: str, filename: str = "mirror_state
     ├── rel_pos_B                     (T_eng, 3)  detector − aperture in aperture body frame [m]
     ├── config/                       group — SimConfig fields as attrs / datasets
     └── segment_<key>/
-        ├── position                  (T_eng, 6)  [x, y, z, θx, θy, θz]
+        ├── position                  (1, 6)      [x, y, z, θx, θy, θz] (constant)
         ├── mirror_actuation          (T_eng, 6)  [tip, tilt, piston, ṫip, ṫilt, ṗiston]
         ├── desired_mirror_actuation  (T_eng, 6)  same layout, commanded values
         └── point_on_det_plane        (T_eng, 2)  [dX, dY]
@@ -197,8 +197,9 @@ def save_states_h5(states: dict, target_path: str, filename: str = "mirror_state
             grp = f.create_group(f"segment_{key}")
             grp.attrs["segment_number"] = int(state.number)
 
+            # Position is constant (never changes during sim) — store single row
             grp.create_dataset("position",
-                               data=np.array(state.hist_position),
+                               data=np.array(state.position, dtype=np.float64).reshape(1, -1),
                                compression="gzip")
             grp.create_dataset("mirror_actuation",
                                data=np.array(state.hist_mirror_actuation),

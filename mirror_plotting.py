@@ -96,13 +96,15 @@ def run(cfg, read_every, opd_vmax=0.005, debug=False):
                 if debug:
                     print(f"  [{seg_name}]  empty — skipping")
                 continue
+            # Position is constant (1, 6) — use the single row
+            pos_data = grp["position"][:]
             s = State(
                 number=seg_num,
-                position=grp["position"][-1].tolist(),
+                position=pos_data[-1].tolist(),
                 mirror_actuation=grp["mirror_actuation"][-1].tolist(),
                 desired_mirror_actuation=grp["desired_mirror_actuation"][-1].tolist(),
             )
-            s.hist_position                 = grp["position"][:]
+            s.hist_position                 = pos_data  # (1, 6) constant
             s.hist_mirror_actuation         = grp["mirror_actuation"][:]
             s.hist_desired_mirror_actuation = grp["desired_mirror_actuation"][:]
             s.hist_point_on_det_plane       = grp["point_on_det_plane"][:]

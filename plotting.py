@@ -415,9 +415,59 @@ def plot_rw_speeds(rw_speeds, time, out_dir="./results", suffix=""):
 def plot_formation_error(pos_err_vec, time, star_vector, out_dir="./results", suffix="",
                          frame_dcm=None, phase=None):
     """Formation error in the aperture frame (pre-projected in main.py)."""
+
     from matplotlib.patches import Patch
     err_s = np.asarray(pos_err_vec)
     t     = time / 3600.0
+
+
+    ######################################################################
+    ####### ---- WHITE
+    ######################################################################
+
+    fig, ax = plt.subplots(2, 1, figsize=(10, 4), sharex=True)
+    ax[0].plot(t, err_s[:, 0], "r--", label="Lateral X", alpha=0.8)
+    ax[0].plot(t, err_s[:, 1], "g--", label="Lateral Y", alpha=0.8)
+    ax[0].set_ylabel("Error [m]"); ax[0].grid()
+
+    ax[1].plot(t, err_s[:, 2], "b-", label="Focal Length Error")
+    ax[1].set_xlabel("Time [hours]"); ax[1].set_ylabel("Error [m]")
+    ax[1].grid()
+
+    # Phase-shaded background regions
+    phase_colors = {"Calibration": "orange", "Pre-Observation": "yellow", "Fine Observation": "red"}
+    if phase is not None:
+        ph = np.asarray(phase)
+        for a in ax:
+            for ph_name, color in phase_colors.items():
+                mask = ph == ph_name
+                if not np.any(mask): continue
+                idx    = np.where(mask)[0]
+                breaks = np.where(np.diff(idx) > 1)[0] + 1
+                for run in np.split(idx, breaks):
+                    a.axvspan(t[run[0]], t[run[-1]], color=color, alpha=0.10, lw=0)
+
+    # Rebuild legends with phase patches
+    legend_patches = [Patch(color=c, alpha=0.4, label=n) for n, c in phase_colors.items()
+                      if phase is not None and np.any(np.asarray(phase) == n)]
+    for a, extra in zip(ax, [legend_patches, legend_patches]):
+        handles, labels = a.get_legend_handles_labels()
+        a.legend(handles=handles + extra, fontsize=8)
+
+    fig.suptitle("Formation Error (Aperture Frame)")
+    #for a in ax: set_dark_transparent(a)
+    fig.patch.set_facecolor('white')
+    fig.patch.set_alpha(1.0)
+    for a in ax:
+        a.set_facecolor('white')
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, f"white_formation_error{suffix}.png"),
+                facecolor='white', transparent=False)
+    plt.close()
+
+    ######################################################################
+    ####### ---- DARK
+    ######################################################################
 
     fig, ax = plt.subplots(2, 1, figsize=(10, 6), sharex=True)
     ax[0].plot(t, err_s[:, 0], "r--", label="Lateral X", alpha=0.8)
@@ -450,7 +500,9 @@ def plot_formation_error(pos_err_vec, time, star_vector, out_dir="./results", su
 
     fig.suptitle("Formation Error (Aperture Frame)")
     for a in ax: set_dark_transparent(a)
-    plt.tight_layout(); plt.savefig(os.path.join(out_dir, f"formation_error{suffix}.png"))
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, f"formation_error{suffix}.png"))
+    plt.close()
 
 
 def plot_observation_precision(pos_err_vec, time, phase, star_vector, out_dir="./results", frame_dcm=None, suffix=""):
