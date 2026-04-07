@@ -34,8 +34,8 @@ matplotlib.use("Agg")   # no display in worker processes
 import itertools
 
 # Sweep over aperture / formation parameters
-RINGS_VALUES          = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]  # Number of hexagonal mirror rings
-FOCAL_LENGTH_VALUES   = [5000, 6000, 7000]               # Target focal length [m]
+RINGS_VALUES          = [12, 13, 14, 15]  # Number of hexagonal mirror rings
+FOCAL_LENGTH_VALUES   = [5000]               # Target focal length [m]
 
 
 # These kwargs are passed to main.run() for EVERY simulation (fixed settings).

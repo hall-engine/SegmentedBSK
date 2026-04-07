@@ -15,13 +15,13 @@
 #SBATCH --output=logs/mc_%j.out
 #SBATCH --error=logs/mc_%j.err
 #SBATCH --cpus-per-task=2
-#SBATCH --time=2:00:00
+#SBATCH --time=36:00:00
 
 # MODE B Configuration (Defaulting to small-ish resources per node)
 #SBATCH --partition=epyc-64
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
-#SBATCH --mem=16G
+#SBATCH --mem=32G
 
 # ─── Environment setup ────────────────────────────────────────────────────────
 module purge
