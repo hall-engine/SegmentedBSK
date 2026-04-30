@@ -25,11 +25,11 @@
 
 # ─── Parameter grid ───────────────────────────────────────────────────────────
 # Edit these arrays.  Every combo gets one array task.
-PARAM_I=(0 45 90 135 180 215)
+PARAM_I=(0)
 PARAM_RAAN=(0)
-PARAM_OMEGA=(0 45 90 135 180 215)
-PARAM_A=(40000000 50000000 60000000 70000000)
-PARAM_E=(0.2 0.4 0.6 0.8)
+PARAM_OMEGA=(0)
+PARAM_A=(50000000)
+PARAM_E=(0.8)
 
 # ─── Build flat index → (i, raan, omega) mapping ─────────────────────────────
 combos=()
@@ -43,6 +43,14 @@ done
 
 # Total number of tasks (set --array accordingly, 0-based)
 N_COMBOS=${#combos[@]}
+
+# Guard: require --array to be set
+if [ -z "${SLURM_ARRAY_TASK_ID:-}" ]; then
+  echo "ERROR: SLURM_ARRAY_TASK_ID is not set."
+  echo "Submit with: sbatch --array=0-$((N_COMBOS-1)) slurm_array.sh"
+  exit 1
+fi
+
 echo "Total combos: $N_COMBOS  |  This task index: $SLURM_ARRAY_TASK_ID"
 
 # Guard against out-of-range index
@@ -58,9 +66,9 @@ echo "Running: i=$I_DEG  raan=$RAAN_DEG  omega=$OMEGA_DEG"
 # ─── Run ──────────────────────────────────────────────────────────────────────
 mkdir -p logs
 
-PYTHON="$(dirname "$0")/bsk_env/bin/python3"   # created by setup_env.sh
+SIM_DIR="${SLURM_SUBMIT_DIR}"                   # directory where sbatch was invoked
+PYTHON="${SIM_DIR}/bsk_env/bin/python3"          # created by setup_env.sh
 # If the venv doesn't exist yet, run:  bash setup_env.sh
-SIM_DIR="$(dirname "$0")"
 
 "$PYTHON" - <<EOF
 import sys, matplotlib

@@ -301,6 +301,7 @@ def plot_orbital_trajectories(r1_n, r2_n, engaged, time, out_dir="./results", ap
     ax1.legend(loc="upper right", fontsize=9)
     set_dark_transparent(ax1)
     plt.savefig(os.path.join(out_dir, f"orbit_3d{suffix}.png"), dpi=120)
+    
 
 
     # ── 2-D projections: separate file ────────────────────────────────────────
@@ -323,6 +324,27 @@ def plot_orbital_trajectories(r1_n, r2_n, engaged, time, out_dir="./results", ap
     fig2.suptitle(f"Orbital Projections ({frame_label})", fontsize=11)
     plt.tight_layout()
     plt.savefig(os.path.join(out_dir, f"orbit_2d{suffix}.png"), dpi=120)
+
+    # ── 2-D projections: separate file ────────────────────────────────────────
+    fig2, axes = plt.subplots(1, 3, figsize=(16, 5))
+    pairs = [(0, 1, xlabel, ylabel, "xy"),
+             (2, 0, zlabel, xlabel, "zx"),
+             (1, 2, ylabel, zlabel, "yz")]
+    for ax, (ci, cj, lx, ly, tag) in zip(axes, pairs):
+        ax.plot(r1[:, ci], r1[:, cj], lw=1.5, color="orange", label="Aperture", alpha=0.7)
+        ax.plot(r2[:, ci], r2[:, cj], lw=1,   color="blue",   label="Detector", alpha=0.7, ls="--")
+        if np.any(engaged):
+            for i, (s, e) in enumerate(zip(starts, ends)):
+                ax.plot(r2[s:e, ci], r2[s:e, cj], color="red",
+                        lw=3, label="Control ON" if i == 0 else "")
+        ax.set_xlabel(lx); ax.set_ylabel(ly)
+        if tag == "xy":
+            ax.set_aspect('equal')   # true ellipse shape on the main orbital plane
+        ax.legend(fontsize=7); ax.grid(alpha=0.3)
+        #set_dark_transparent(ax)
+    fig2.suptitle(f"Orbital Trajectory Views", fontsize=11)
+    plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, f"white_orbit_2d{suffix}.png"), dpi=120, facecolor='white', transparent=False)
 
 
 
@@ -452,7 +474,7 @@ def plot_formation_error(pos_err_vec, time, star_vector, out_dir="./results", su
                       if phase is not None and np.any(np.asarray(phase) == n)]
     for a, extra in zip(ax, [legend_patches, legend_patches]):
         handles, labels = a.get_legend_handles_labels()
-        a.legend(handles=handles + extra, fontsize=8)
+        a.legend(handles=handles + extra, fontsize=8, loc='center')
 
     fig.suptitle("Formation Error (Aperture Frame)")
     #for a in ax: set_dark_transparent(a)
