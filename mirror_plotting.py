@@ -13,7 +13,7 @@ from tqdm import tqdm
 from PIL import Image
 from State import State
 
-def run(cfg, read_every, opd_vmax=0.005, debug=False):
+def run(cfg, read_every, opd_vmax=0.060, debug=False):
     # Make sure the fastersimulation package is importable
     HERE = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, HERE)

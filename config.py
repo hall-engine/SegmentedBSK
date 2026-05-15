@@ -49,10 +49,10 @@ class SimConfig:
     # MISSION TIMING
     # ==================================================================================================
     ### -important
-    period_multiple: float = 0.80                                   # THIS ONE Fraction of orbital period to simulate
+    period_multiple: float = 0.15                                   # THIS ONE Fraction of orbital period to simulate
     ### -important
     cal_window_sec: float = 600.0                                   # Calibration phase duration [s]
-    obs_window_sec: float = 300.0                                   # Observation phase duration [s]
+    obs_window_sec: float = 600.0                                   # Observation phase duration [s]
     target_eccentric_anomaly_deg: float = 90.0                      # Eccentric anomaly for peak concentration [deg]
     ff_control_dt: float = 0.1                                     # Formation Flight (translation) control step [s]
     mirror_control_dt: float = 0.1                                 # Mirror segment (optics) control step [s]
@@ -88,7 +88,7 @@ class SimConfig:
     app_srp_model: str = "plate"        # "cannonball" or "plate"
     app_diameter: float = 1000.0        # [m] effective aperture diameter (if plate)
     app_mass_density: float = 200.0     # [kg/m^3]
-    rings: int = 1
+    rings: int = 5
     gap: float = 1.0                    # [cm]
     flat_to_flat: float = 5.0           # [m]
 
@@ -292,4 +292,4 @@ class SimConfig:
     # ==================================================================================================
     # OUTPUT DIRECTORY
     # ==================================================================================================
-    results_base: str = f"results/sphere_sweep/"
+    results_base: str = f"results/pres_run/"

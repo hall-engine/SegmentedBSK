@@ -21,7 +21,7 @@
 #SBATCH --time=02:00:00                # wall-clock limit per task
 #SBATCH --ntasks=1                     # 1 process per task (sim is single-proc)
 #SBATCH --cpus-per-task=2              # BSK + mirror plotting
-#SBATCH --mem=16G                       # per task (GIF assembly is memory-intensive)
+#SBATCH --mem=32G                       # per task (GIF assembly is memory-intensive)
 
 # ─── Parameter grid ───────────────────────────────────────────────────────────
 # Edit these arrays.  Every combo gets one array task.
@@ -63,12 +63,32 @@ fi
 IFS=',' read -r I_DEG RAAN_DEG OMEGA_DEG <<< "${combos[$SLURM_ARRAY_TASK_ID]}"
 echo "Running: i=$I_DEG  raan=$RAAN_DEG  omega=$OMEGA_DEG"
 
-# ─── Run ──────────────────────────────────────────────────────────────────────
+# ─── Environment setup ────────────────────────────────────────────────────────
+module purge
+module load gcc/13.3.0
+module load python/3.11.9
+
+SIM_DIR="${SLURM_SUBMIT_DIR}"
 mkdir -p logs
 
-SIM_DIR="${SLURM_SUBMIT_DIR}"                   # directory where sbatch was invoked
-PYTHON="${SIM_DIR}/bsk_env/bin/python3"          # created by setup_env.sh
-# If the venv doesn't exist yet, run:  bash setup_env.sh
+# Robust venv detection: Check local folder, then check parent folder
+if [ -x "$SIM_DIR/bsk_env/bin/python3" ]; then
+    PYTHON="$SIM_DIR/bsk_env/bin/python3"
+elif [ -x "$SIM_DIR/../bsk_env/bin/python3" ]; then
+    PYTHON="$SIM_DIR/../bsk_env/bin/python3"
+else
+    echo "ERROR: venv not found. Checked $SIM_DIR/bsk_env and the parent folder."
+    echo "Current directory: $(pwd)"
+    echo "Submit directory:  $SIM_DIR"
+    exit 1
+fi
+
+# Stability fixes for HPC environment isolation
+export PYTHONNOUSERSITE=1       # Ignore ~/.local/ to prevent version conflicts
+export OPENBLAS_NUM_THREADS=1   # Prevent thread exhaustion
+export MKL_NUM_THREADS=1        # Prevent MKL thread exhaustion
+
+export PYTHONPATH="$HOME/basilisk/dist3:$SIM_DIR:${PYTHONPATH:-}"
 
 "$PYTHON" - <<EOF
 import sys, matplotlib
