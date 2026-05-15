@@ -21,7 +21,7 @@
 #SBATCH --time=02:00:00                # wall-clock limit per task
 #SBATCH --ntasks=1                     # 1 process per task (sim is single-proc)
 #SBATCH --cpus-per-task=2              # BSK + mirror plotting
-#SBATCH --mem=4G                       # per task
+#SBATCH --mem=16G                       # per task (GIF assembly is memory-intensive)
 
 # ─── Parameter grid ───────────────────────────────────────────────────────────
 # Edit these arrays.  Every combo gets one array task.

@@ -140,7 +140,8 @@ def run(cfg, read_every, opd_vmax=0.005, debug=False):
         plots_mirror_actuation(states, plot_state_list=[0, 1, 3, 6], graph_path=graph_path, time=time, cfg=cfg, suffix=suffix)
         # Use body-frame relative position (x_B, y_B = focal plane coords); fall back to ECI if unavailable
         focal_plane_pos = rel_pos_B if rel_pos_B is not None else rel_pos
-        create_frames(hexdm, states, time, graph_path, focal_plane_pos, det_size, wideview, opd_vmax=opd_vmax, read_every=read_every, if_opd=False, suffix=suffix)
+        focal_len = getattr(cfg, 'focal_length', cfg_dict.get('focal_length', cfg_dict.get('target_focal_length', None)))
+        create_frames(hexdm, states, time, graph_path, focal_plane_pos, det_size, wideview, opd_vmax=opd_vmax, read_every=read_every, if_opd=False, suffix=suffix, focal_length=focal_len)
     else:
         print(">> Skipping mirror plots and frames (no data).")
     # ==================================================================================================================
@@ -227,7 +228,7 @@ def _rectange_for_detectorax(ax, pos, size, color):
     ax.add_patch(rect)
 
 
-def create_frames(hexdm, states, time, graph_path, position, det_size, wideview, read_every, opd_vmax=0.005, if_opd=False, suffix=""):
+def create_frames(hexdm, states, time, graph_path, position, det_size, wideview, read_every, opd_vmax=0.005, if_opd=False, suffix="", focal_length=None):
     """
     Plots the frame
     LHS has the HEXDM shape colour
@@ -239,6 +240,18 @@ def create_frames(hexdm, states, time, graph_path, position, det_size, wideview,
         # CLEAR AND WIPE PREVIOUS RUNS
         shutil.rmtree(gif_temp_dir)
     os.makedirs(gif_temp_dir)
+
+    # ── Pre-compute parabolic baseline piston for each segment ─────────────
+    # piston_baseline(x,y) = (x² + y²) / (4·f)
+    # Subtracting this from the raw piston before display makes the OPD map
+    # show only the residual wavefront error, giving a continuous surface.
+    piston_baselines = {}   # keyed the same as states (int or whatever s_key is)
+    if focal_length is not None and focal_length > 0:
+        for s_idx, s_key in enumerate(states):
+            state_obj = states[s_key] if isinstance(states, dict) else s_key
+            cx, cy = getattr(state_obj, 'position', [0, 0])[:2]
+            piston_baselines[s_key] = (cx**2 + cy**2) / (4.0 * focal_length)
+
     # wideview limits
     Xlimits = [-wideview, wideview]
     Ylimits = [-wideview, wideview]
@@ -254,12 +267,13 @@ def create_frames(hexdm, states, time, graph_path, position, det_size, wideview,
             fig, ax = plt.subplots(ncols=4, nrows=1, figsize=(24,6))  # Adjust height for better aspect ratio
         else:   
             fig, ax = plt.subplots(ncols=3, nrows=1, figsize=(19,6))  # Adjust height for better aspect ratio
-        # actuate mirror surface
+        # actuate mirror surface — subtract parabolic baseline so OPD shows residuals
         for s_idx, s_key in enumerate(states):
             state_obj = states[s_key] if isinstance(states, dict) else s_key
             [tip, tilt, piston] = state_obj.hist_mirror_actuation[i, :3]
             s_label = getattr(state_obj, 'number', s_idx)
-            hexdm.set_actuator(s_label, piston, -tip, -tilt)
+            piston_residual = piston - piston_baselines.get(s_key, 0.0)
+            hexdm.set_actuator(s_label, piston_residual, -tip, -tilt)
         # HEXDM
         hexdm.display(what='opd', colorbar_orientation="vertical", opd_vmax=opd_vmax, ax=ax[0])
         
@@ -277,12 +291,12 @@ def create_frames(hexdm, states, time, graph_path, position, det_size, wideview,
             # wideview
             ax[1].scatter(pt[0], pt[1], marker='.', s=5, color=color)
             
-            # detector plane
+            # detector plane — all markers red for visibility
             ax[2].scatter(pt[0]-position[i, 0], 
                         pt[1]-position[i, 1], 
                         s=100, 
                         marker='+',
-                        color=color,
+                        color='red',
                         alpha=0.8,
                         label=f'seg {s_label}')
                         
@@ -350,27 +364,32 @@ def create_frames(hexdm, states, time, graph_path, position, det_size, wideview,
     frames_black.sort(key=lambda x: float(x[0]))
 
     def save_gif(frames, output_name):
+        """Stream frames one at a time to keep memory flat (avoids OOM on HPC)."""
         if not frames:
             print(f">> no frames found for {output_name}")
             return
-        imgs = []
-        for _, fname in frames:
-            path = os.path.join(gif_temp_dir, fname)
-            with Image.open(path) as im:
-                imgs.append(im.convert("RGBA").copy())
-        paletted = [im.convert("P", palette=Image.ADAPTIVE) for im in imgs]
         output_path = os.path.join(graph_path, output_name)
-        paletted[0].save(
+        # Convert and save first frame, then append rest one by one
+        first_path = os.path.join(gif_temp_dir, frames[0][1])
+        with Image.open(first_path) as im:
+            first = im.convert("RGBA").convert("P", palette=Image.ADAPTIVE)
+        # Build remaining frames as a generator to avoid holding all in RAM
+        def _remaining():
+            for _, fname in frames[1:]:
+                fpath = os.path.join(gif_temp_dir, fname)
+                with Image.open(fpath) as im:
+                    yield im.convert("RGBA").convert("P", palette=Image.ADAPTIVE)
+        first.save(
             output_path,
             save_all=True,
-            append_images=paletted[1:],
+            append_images=_remaining(),
             duration=duration,
             loop=0,
             disposal=2,
             transparency=0
         )
+        del first
         print(">> GIF created.")
-        del imgs, paletted
 
     save_gif(frames_white, white_name)
     save_gif(frames_black, black_name)
