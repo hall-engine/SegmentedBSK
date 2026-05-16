@@ -260,25 +260,25 @@ def create_frames(hexdm, states, time, graph_path, position, det_size, wideview,
     detYlimits = [-det_size/2 , det_size/2]
     # for all the values: i = integer index, time_frame = float time value [s]
     indices = range(0, len(time), read_every)
+    # Visible detector box size on the wideview — fixed fraction so it's actually visible
+    det_box_vis = wideview / 10.0
+
     for i in tqdm(indices, desc='processing frames: ', total=len(indices)):
         time_frame = time[i]
-        # Check if the index is cleanly divisible by read_every
-        if if_opd: 
-            fig, ax = plt.subplots(ncols=4, nrows=1, figsize=(24,6))  # Adjust height for better aspect ratio
-        else:   
-            fig, ax = plt.subplots(ncols=3, nrows=1, figsize=(19,6))  # Adjust height for better aspect ratio
-        # actuate mirror surface — subtract parabolic baseline so OPD shows residuals
+        # 3 subplots: OPD | wideview (with visible detector box) | detector plane
+        if if_opd:
+            fig, ax = plt.subplots(ncols=4, nrows=1, figsize=(24, 6))
+        else:
+            fig, ax = plt.subplots(ncols=3, nrows=1, figsize=(19, 6))
+        # actuate mirror surface — raw piston gives continuous parabolic OPD
         for s_idx, s_key in enumerate(states):
             state_obj = states[s_key] if isinstance(states, dict) else s_key
             [tip, tilt, piston] = state_obj.hist_mirror_actuation[i, :3]
             s_label = getattr(state_obj, 'number', s_idx)
-            piston_residual = piston - piston_baselines.get(s_key, 0.0)
-            hexdm.set_actuator(s_label, piston_residual, -tip, -tilt)
+            hexdm.set_actuator(s_label, piston, -tip, -tilt)
         # HEXDM
         hexdm.display(what='opd', colorbar_orientation="vertical", opd_vmax=opd_vmax, ax=ax[0])
         
-        # Define a colormap for segments
-        cmap = plt.get_cmap('tab10')
         # DETECTOR
         for s_idx, s_key in enumerate(states):
             # Handle states whether it is a list or dict
@@ -286,10 +286,9 @@ def create_frames(hexdm, states, time, graph_path, position, det_size, wideview,
             # Check attribute name
             pt = state_obj.hist_point_on_det_plane[i]
             s_label = getattr(state_obj, 'number', s_idx)
-            color = cmap(s_idx % 10)
             
-            # wideview
-            ax[1].scatter(pt[0], pt[1], marker='.', s=5, color=color)
+            # wideview — red dots
+            ax[1].scatter(pt[0], pt[1], marker='.', s=5, color='red')
             
             # detector plane — all markers red for visibility
             ax[2].scatter(pt[0]-position[i, 0], 
@@ -316,15 +315,13 @@ def create_frames(hexdm, states, time, graph_path, position, det_size, wideview,
             
         # OPD JUST IN CASE
         if if_opd:
-            # We don't have detector.current_opd easily available without the object, 
-            # so we plot the OPD from hexdm directly or skip if not passed
             im = hexdm.display(what='opd', colorbar_orientation="vertical", opd_vmax=2.0, ax=ax[3])
             ax[3].set_title('OPD [m]')
             
         # optical axis centre crosshair
         ax[1].scatter(position[i, 0], position[i, 1], marker='+', s=50, color='white')
-        # detector boundary
-        _rectange_for_detectorax(ax[1], position[i, 0:2], det_size*25*(1-position[i, 2]), color='k')
+        # detector boundary on wideview — drawn at visible size so you can see it fly across
+        _rectange_for_detectorax(ax[1], position[i, 0:2], det_box_vis, color='k')
         plt.suptitle(f"time step {time_frame:5.2f} s")
         plt.tight_layout()
         plotname = f'frame_{time_frame:.4f}.png'
@@ -334,7 +331,7 @@ def create_frames(hexdm, states, time, graph_path, position, det_size, wideview,
         plt.savefig(white_path)
         for a in ax:
             u.set_dark_transparent(ax=a)
-        _rectange_for_detectorax(ax[1], position[i, 0:2], det_size*25, color='white')
+        _rectange_for_detectorax(ax[1], position[i, 0:2], det_box_vis, color='white')
         # save black
         plt.savefig(black_path)
         plt.close('all')
@@ -345,7 +342,7 @@ def create_frames(hexdm, states, time, graph_path, position, det_size, wideview,
     print(f'>> creating GIFs from frames...')
     white_name=f"white_animation{suffix}.gif"
     black_name=f"black_animation{suffix}.gif"
-    duration=20
+    duration=60  # ms per frame (3x slower than original 20ms)
     pattern_white = re.compile(r"white_frame_([\d.]+)\.png")
     pattern_black = re.compile(r"black_frame_([\d.]+)\.png")
 

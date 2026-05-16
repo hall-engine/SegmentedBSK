@@ -998,7 +998,7 @@ def run(cfg: SimConfig = None, show_plots: bool = True, **kwargs):
     # Mirror animation — gated on both config flags
     if cfg.mirror_plotting and cfg.mirror_control_on:
         import mirror_plotting
-        mirror_plotting.run(cfg, read_every=cfg.read_every, opd_vmax=0.005, debug=False)
+        mirror_plotting.run(cfg, read_every=cfg.read_every, opd_vmax=cfg.opd_vmax, debug=False)
 
 
 # =============================================================================
@@ -1022,9 +1022,9 @@ if __name__ == "__main__":
     cfg = SimConfig()
     run(cfg,
         read_every          = 100,     # mirror plotting frame interval
-        period_multiple     = 0.15,
-        ff_control_dt       = 0.1,
-        mirror_control_dt   = 0.1,
+        period_multiple     = 0.03,
+        ff_control_dt       = 0.05,
+        mirror_control_dt   = 0.05,
         show_plots          = True,   # save all plots after each sim
         save_data           = True,    # keep h5 and config saved
         mirror_plotting     = True,   # run mirror animation (slow — keep False for sweeps)

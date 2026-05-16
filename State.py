@@ -19,6 +19,7 @@ class State():
         self.position = position
         self.mirror_actuation = mirror_actuation
         self.desired_mirror_actuation = desired_mirror_actuation
+        self.piston_baseline = 0.0  # parabolic baseline piston [m], set during init
         self.point_on_det_plane = np.zeros((1,2))
         # create histories array
         # NOTE: position is constant (never changes during sim), stored as (1, 6)

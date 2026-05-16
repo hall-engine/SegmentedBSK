@@ -23,7 +23,7 @@ class SimConfig:
     base_raan_deg: float = 0                      # RAAN [deg]  — sets ĥ azimuth toward RA 11h18m22s
     base_omega_deg: float = 0.0                        # Argument of periapsis [deg]
 
-    start_eccentric_anomaly_deg: float = 0.0           # Starting E [deg] (for jump-starting sim)
+    start_eccentric_anomaly_deg: float = 85           # Starting E [deg] (for jump-starting sim)
     time_init_string: str = "2024 APRIL 11 03:21:00.0"  # SPICE epoch — ATLAS detection of SN 2024ggi
 
     # ==================================================================================================
@@ -49,14 +49,14 @@ class SimConfig:
     # MISSION TIMING
     # ==================================================================================================
     ### -important
-    period_multiple: float = 0.15                                   # THIS ONE Fraction of orbital period to simulate
+    period_multiple: float = 0.03                                   # THIS ONE Fraction of orbital period to simulate
     ### -important
     cal_window_sec: float = 600.0                                   # Calibration phase duration [s]
     obs_window_sec: float = 600.0                                   # Observation phase duration [s]
     target_eccentric_anomaly_deg: float = 90.0                      # Eccentric anomaly for peak concentration [deg]
-    ff_control_dt: float = 0.1                                     # Formation Flight (translation) control step [s]
-    mirror_control_dt: float = 0.1                                 # Mirror segment (optics) control step [s]
-    time_step_sec: float = 0.1    # Simulation physics step [s]
+    ff_control_dt: float = 0.05                                     # Formation Flight (translation) control step [s]
+    mirror_control_dt: float = 0.05                                 # Mirror segment (optics) control step [s]
+    time_step_sec: float = 0.05    # Simulation physics step [s]
 
     # ==================================================================================================
 
@@ -238,16 +238,14 @@ class SimConfig:
 
     ###################################################################################
     # ── MIRROR ACTUATOR physical limits (top-of-range space-qualified hardware) ──────
-    mirror_max_piston_stroke_m: float = 130e-6
-    """Maximum piston displacement from nominal [m].  ±130 µm.
-    Reference: CEDRAT APA120ML amplified piezo actuator — 130 µm nominal stroke,
-    1400 N blocked force.  Space-qualified per ECSS standards; heritage on
-    Rosetta, IASI-NG, MTG, Psyche (Cedrat Technologies)."""
+    mirror_max_piston_stroke_m: float = 50e-3
+    """Maximum piston displacement from nominal [m].  ±50 mm.
+    Must accommodate parabolic baseline piston (x²+y²)/(4f) for outer segments.
+    For 5 rings at f=5000m, outermost segments need ~31 mm."""
 
-    mirror_max_tiptilt_stroke_rad: float = 2e-3
-    """Maximum tip/tilt angle from nominal [rad].  ±2 mrad mechanical.
-    Reference: PI S-340 PICMA® piezo tip/tilt platform — 2 mrad mechanical
-    tilt per axis, sub-ms response, 20 nrad resolution (Physik Instrumente)."""
+    mirror_max_tiptilt_stroke_rad: float = 10e-3
+    """Maximum tip/tilt angle from nominal [rad].  ±10 mrad mechanical.
+    Must accommodate pointing angles for outer segments at large ring counts."""
 
     mirror_max_piston_rate_mps: float = 5e-3
     """Maximum piston slew rate [m/s].  5 mm/s.
@@ -293,3 +291,8 @@ class SimConfig:
     # OUTPUT DIRECTORY
     # ==================================================================================================
     results_base: str = f"results/pres_run/"
+
+    # ==================================================================================================
+    # OPD COLORBAR
+    # ==================================================================================================
+    opd_vmax: float = 0.070

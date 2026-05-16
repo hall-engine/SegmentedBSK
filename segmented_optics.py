@@ -59,6 +59,7 @@ def apply_shape_to_pistons(states, hexdm, cfg, curve, randomise=1e-3):
     for s in states:
         cenx, ceny = states[s].position[:2]
         z = _calc(cenx, ceny, cfg.focal_length)
+        states[s].piston_baseline = z  # store baseline for stroke limiting
         states[s].mirror_actuation[2] = z
         states[s].desired_mirror_actuation[2] = z
     print(f'>> {curve} curve applied to current and desired piston positions')
